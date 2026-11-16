@@ -379,7 +379,8 @@ function layout(){
     let mem=[...u.m];
     if(u.m.length===2){ const a=u.anchor||u.m[0], o=u.m.find(x=>x!==a); mem = sideOf[u.id]===-1 ? [o,a] : [a,o];
       if(!u.anchor){ mem = u.m[0].sex==='F'&&u.m[1].sex==='M' ? [u.m[1],u.m[0]] : u.m; } }
-    const g=gen[u.m[0].id], uw=(mem.length-1)*W+NW;
+    const CW = (u.m.length===2 && u.m.some(x=>x.separated)) ? W+90 : W; // casal separado fica mais afastado
+    const g=gen[u.m[0].id], uw=(mem.length-1)*CW+NW;
     const S={n:[],c:{}};
     if(u.kids.length){
       let F=null;
@@ -394,10 +395,10 @@ function layout(){
       const mid=(ka(firstK)+ka(lastK))/2;
       const x0=mid-uw/2;
       S.n=F.n; S.c=F.c;
-      mem.forEach((p,i)=>S.n.push({id:p.id,x:x0+i*W,g}));
+      mem.forEach((p,i)=>S.n.push({id:p.id,x:x0+i*CW,g}));
       merge(S.c,{[g]:[x0,x0+uw]},0);
     } else {
-      mem.forEach((p,i)=>S.n.push({id:p.id,x:i*W,g}));
+      mem.forEach((p,i)=>S.n.push({id:p.id,x:i*CW,g}));
       S.c[g]=[0,uw];
     }
     S.lastCouple=false;
