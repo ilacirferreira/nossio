@@ -1226,7 +1226,7 @@ document.getElementById('incBtn').onclick=document.getElementById('fab').onclick
   openSheet(`<h2>Incluir pessoa</h2>
   <label class="lbl">1. Nome da pessoa nova</label><input id="incNome" class="inp cad" placeholder="Ex.: Florice" autocomplete="off">
   <label class="lbl">Sexo</label><select id="incSexo" class="inp cad"><option value="">— não sei —</option><option value="F">Feminino</option><option value="M">Masculino</option></select>
-  <label class="lbl">2. Ela é…</label><select id="incRel" class="inp cad"><option value="child">filho(a) de</option><option value="sibling">irmão(ã) de</option><option value="spouse">marido / esposa de</option><option value="parent">pai / mãe de</option><option value="none">sem parente na árvore (começa uma família nova)</option></select>
+  <label class="lbl">2. Ela é…</label><select id="incRel" class="inp cad"><option value="child">filho(a) de</option><option value="sibling">irmão(ã) de</option><option value="spouse">marido / esposa de</option><option value="parent">pai / mãe de</option></select>
   <div id="incWho"><label class="lbl">3. …de quem? Digite o nome</label><input id="incQ" class="inp cad" placeholder="Procurar na árvore…" autocomplete="off">
   <div id="incSel" class="sub" style="margin:6px 0;font-weight:600;color:var(--ink)"></div>
   <div id="incL" style="margin-top:4px;max-height:30vh;overflow:auto"></div></div>
@@ -1236,8 +1236,7 @@ document.getElementById('incBtn').onclick=document.getElementById('fab').onclick
   const showSel=()=>{ const e=document.getElementById('incSel'); if(!sel){e.textContent='';return} e.innerHTML=sel.id?'Escolhido: '+esc(byId(sel.id).name):`Será criado(a) também: <b>${esc(sel.novo)}</b> <select id="incNovoSexo" style="margin-left:6px"><option value="">sexo?</option><option value="F" ${sel.sexo==='F'?'selected':''}>mulher</option><option value="M" ${sel.sexo==='M'?'selected':''}>homem</option></select>`; const ns=document.getElementById('incNovoSexo'); if(ns) ns.onchange=()=>sel.sexo=ns.value; };
   const draw=q=>{ const raw=q.trim(); q=nrm(q); const hits=list.filter(p=>!q||nrm(p.name+' '+(p.apelido||'')).includes(q)).slice(0,60);
     let h=hits.map(p=>`<button class="btn ghost" data-inc="${p.id}" style="display:block;width:100%;text-align:left;margin-bottom:6px;${sel&&p.id===sel.id?'background:#e3f1e8;border-color:var(--green,#2e6b4f)':''}">${sel&&p.id===sel.id?'✔ ':''}${esc(p.name)}${p.apelido?' <span class="sub" style="margin:0">('+esc(p.apelido)+')</span>':''}</button>`).join('');
-    if(raw.length>=2) h+=`<button class="btn ghost" id="incNovo" style="display:block;width:100%;text-align:left;margin-bottom:6px;border-style:dashed">➕ "${esc(fmtName(raw))}" não está na árvore — criar também</button>`;
-    document.getElementById('incL').innerHTML=h||'<div class="sub">Digite um nome.</div>';
+    document.getElementById('incL').innerHTML=h||(raw.length>=2?`<div class="sub">"${esc(fmtName(raw))}" não está na árvore. Só incluímos quem tem um parente que já está aqui — procure outro parente da pessoa.</div>`:'<div class="sub">Digite um nome.</div>');
     document.querySelectorAll('[data-inc]').forEach(b=>b.onclick=()=>{ sel={id:b.dataset.inc}; showSel(); draw(document.getElementById('incQ').value); });
     const nv=document.getElementById('incNovo'); if(nv) nv.onclick=()=>{ sel={novo:fmtName(raw),sexo:''}; showSel(); }; };
   draw(''); document.getElementById('incQ').oninput=e=>draw(e.target.value);
@@ -1299,7 +1298,7 @@ function findByName(n){ const q=nrm(n); if(!q) return {none:true};
 function openTell(prefill){
   if(!canWrite){ if(window.NOSSIO_GAS){ if(wantWrite&&!myCad) return openCad(); return openCode(); } return; }
   openSheet(`<h2>✍️ Contar</h2><div class="sub">Escreva em frases simples, uma por linha ou separadas por ponto. Exemplos:<br>
-  • <i>Carol é filha de Jacy e Márcia</i><br>• <i>Diego é casado com Florence</i><br>• <i>Diego e Florence são pais de Leo e Iza</i><br>• <i>Leo é irmão de Iza</i><br>• <i>Liziane faleceu</i><br>Quem ainda não estiver na árvore é criado na hora.</div>
+  • <i>Carol é filha de Jacy e Márcia</i><br>• <i>Diego é casado com Florence</i><br>• <i>Diego e Florence são pais de Leo e Iza</i><br>• <i>Leo é irmão de Iza</i><br>• <i>Liziane faleceu</i><br>Quem ainda não estiver na árvore é criado na hora — desde que seja parente de alguém que já está aqui.</div>
   <textarea id="tTxt" class="inp cad" rows="4" style="resize:vertical" placeholder="O que você sabe…"></textarea>
   <button class="btn green" id="tPrev" style="width:100%;margin-top:8px">Ver o que vai mudar</button>
   <div id="tOut" style="margin-top:10px"></div>`);
@@ -1318,6 +1317,12 @@ function openTell(prefill){
       else if(a.t==='dead'){ const A=who(a.a); plan.push({t:'dead',A}); lines.push(`${A.label} → falecido(a) †`); }
       else lines.push(`<span style="color:var(--red)">Não entendi: "${esc(a.s)}"</span>`);
     }
+    // regra: só entra quem tem um conhecido já na árvore (cada grupo de pessoas novas precisa tocar alguém existente)
+    const par={}, f=k=>{ while(par[k]!==undefined&&par[k]!==k) k=par[k]; return k; }, key=x=>x.p?'E'+x.p.id:'N'+nrm(x.novo||''), uni=(a,b)=>{ if(!a||!b||a.amb||b.amb) return; const A=f(key(a)), B=f(key(b)); if(A!==B) par[A]=B; };
+    plan.forEach(x=>{ const g=[x.A,x.B,...(x.ps||[]),...(x.ks||[]),...(x.As||[])].filter(Boolean); g.forEach(y=>{ if(par[key(y)]===undefined) par[key(y)]=key(y); }); for(let i=1;i<g.length;i++) uni(g[0],g[i]); });
+    const roots={}; Object.keys(par).forEach(k=>{ const r=f(k); roots[r]=roots[r]||{ex:false,nov:[]}; if(k[0]==='E') roots[r].ex=true; else roots[r].nov.push(k.slice(1)); });
+    const soltos=Object.values(roots).filter(r=>!r.ex).flatMap(r=>r.nov);
+    if(soltos.length){ document.getElementById('tOut').innerHTML=`<div class="missing">${lines.map(l=>'• '+l).join('<br>')}</div><div class="sub" style="color:var(--red)">Nenhuma dessas pessoas está na árvore: ${esc(soltos.map(fmtName).join(', '))}. Só incluímos quem tem um parente que já está aqui — diga de quem elas são parentes.</div>`; return; }
     const amb=plan.some(x=>[x.A,x.B,x.P,...(x.ps||[]),...(x.ks||[]),...(x.As||[])].some(y=>y&&y.amb));
     document.getElementById('tOut').innerHTML=`<div class="missing">${lines.map(l=>'• '+l).join('<br>')||'Escreva algo acima.'}</div>`+
       (amb?'<div class="sub" style="color:var(--red)">Há mais de uma pessoa com algum desses nomes — escreva o nome completo.</div>':'')+
