@@ -324,7 +324,7 @@ function layout(){
   people.forEach(p=>{ if(gen[p.id]===undefined){ touch(p.id,0); walk(); } });
   const gens=[...new Set(Object.values(gen))].sort((a,b)=>a-b);
   const gIdx={}; gens.forEach((g,i)=>gIdx[g]=i);
-  const W=128,NW=112,H=170, SIB=16, COUPLE=22, ROOTGAP=40;
+  const W=128,NW=112,H=195, SIB=16, COUPLE=22, ROOTGAP=40;
 
   // 1) unidades: casal (marido+esposa) ou pessoa sozinha
   const unitOf={}, units=[];
@@ -448,6 +448,7 @@ function render(){
   const segs=[];const drawn=new Set(); const famLevel={}, levelCount={};
   const ck=(a,b)=>[a,b].filter(Boolean).sort().join('+');
   const seg=(g,x1,y1,x2,y2)=>segs.push({g,x1,y1,x2,y2});
+  const kidsOf={}; // família (pai+mãe) -> filhos com a posição de onde sai a linha
   people.forEach(p=>{
     if(p.spouse&&pos[p.spouse]&&pos[p.id]&&!drawn.has(p.spouse)){drawn.add(p.id);const a=pos[p.id],b=pos[p.spouse];
       seg(ck(p.id,p.spouse),Math.min(a.x,b.x)+NW,a.y+40,Math.max(a.x,b.x),b.y+40); if(p.separated) segs[segs.length-1].sep=true;}
@@ -456,10 +457,15 @@ function render(){
     let px,py;
     if(ps.length===2&&pos[ps[0]].y===pos[ps[1]].y){const a=pos[ps[0]],b=pos[ps[1]];px=(Math.min(a.x,b.x)+NW+Math.max(a.x,b.x))/2;py=a.y+40}
     else{const a=pos[ps[0]];px=a.x+NW/2;py=a.y+NH}
-    if(!(g in famLevel)){const row=c0=>0; famLevel[g]=(levelCount[pos[p.id].y]=(levelCount[pos[p.id].y]||0)+1)-1;}
-    const c=pos[p.id],cx=c.x+NW/2,cy=c.y,mid=cy-10-(famLevel[g]%3)*8;
-    seg(g,px,py,px,mid); seg(g,px,mid,cx,mid); seg(g,cx,mid,cx,cy);
+    (kidsOf[g]=kidsOf[g]||{g,px,py,kids:[]}).kids.push(pos[p.id]);
   });
+  // cada família ganha a sua "altura" de barra: barras de famílias diferentes que se sobrepõem na horizontal
+  // ficam em alturas diferentes, para nunca parecer que estão ligadas
+  const byRow={}; Object.values(kidsOf).forEach(f=>{ const xs=[f.px,...f.kids.map(c=>c.x+NW/2)]; f.x1=Math.min(...xs); f.x2=Math.max(...xs); f.row=Math.min(...f.kids.map(c=>c.y)); (byRow[f.row]=byRow[f.row]||[]).push(f); });
+  Object.values(byRow).forEach(fs=>{ fs.sort((a,b)=>a.x1-b.x1); const lv=[]; fs.forEach(f=>{ let L=0; while(lv[L]!==undefined&&lv[L]>f.x1-14) L++; lv[L]=f.x2; f.level=L; }); });
+  Object.values(kidsOf).forEach(f=>{ const mid=f.row-12-f.level*16;
+    seg(f.g,f.px,f.py,f.px,mid); const xs=[f.px,...f.kids.map(c=>c.x+NW/2)]; seg(f.g,Math.min(...xs),mid,Math.max(...xs),mid);
+    f.kids.forEach(c=>seg(f.g,c.x+NW/2,mid,c.x+NW/2,c.y)); });
   const isV=s=>s.x1===s.x2&&s.y1!==s.y2, isH=s=>s.y1===s.y2&&s.x1!==s.x2;
   const between=(v,a,b,m)=>v>Math.min(a,b)+m&&v<Math.max(a,b)-m;
   // onde uma linha vertical cruza uma horizontal de outra família: interrompe a vertical
@@ -468,7 +474,8 @@ function render(){
     if(h.g!==v.g && between(v.x1,h.x1,h.x2,1) && between(h.y1,v.y1,v.y2,1))
       gaps+=`<line x1="${v.x1}" y1="${h.y1-6}" x2="${v.x1}" y2="${h.y1+6}" stroke="var(--bg)" stroke-width="5"/>`;
   }));
-  const draw=list=>list.map(s=>`<line x1="${s.x1}" y1="${s.y1}" x2="${s.x2}" y2="${s.y2}" stroke="#b9ab8f" stroke-width="2" stroke-linecap="round"/>`).join('');
+  const LCOL=['#a8977a','#6f93b0','#b0708a','#7aa46b','#c08a3e','#8f78b8','#5fa39a','#a66a4f']; const colOf=g=>{ let h=0; for(const ch of String(g)) h=(h*31+ch.charCodeAt(0))>>>0; return LCOL[h%LCOL.length]; };
+  const draw=list=>list.map(s=>`<line x1="${s.x1}" y1="${s.y1}" x2="${s.x2}" y2="${s.y2}" stroke="${colOf(s.g)}" stroke-width="2" stroke-linecap="round"/>`).join('');
   // verticais por baixo, depois as interrupções, depois as horizontais por cima
   // casal separado: a linha entre os dois é quebrada por um raio
   const bolts=segs.filter(s=>s.sep).map(s=>{ const x1=Math.min(s.x1,s.x2), x2=Math.max(s.x1,s.x2), mx=(x1+x2)/2, y=s.y1;
