@@ -379,7 +379,7 @@ function layout(){
     let mem=[...u.m];
     if(u.m.length===2){ const a=u.anchor||u.m[0], o=u.m.find(x=>x!==a); mem = sideOf[u.id]===-1 ? [o,a] : [a,o];
       if(!u.anchor){ mem = u.m[0].sex==='F'&&u.m[1].sex==='M' ? [u.m[1],u.m[0]] : u.m; } }
-    const CW = (u.m.length===2 && u.m.some(x=>x.separated)) ? W+200 : W; // casal separado fica mais afastado
+    const CW = (u.m.length===2 && u.m.some(x=>x.separated)) ? W+100 : W; // casal separado fica mais afastado
     const g=gen[u.m[0].id], uw=(mem.length-1)*CW+NW;
     const S={n:[],c:{}};
     if(u.kids.length){
