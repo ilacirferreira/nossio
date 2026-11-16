@@ -786,6 +786,9 @@ function openPerson(id){
     document.getElementById('bEdit').onclick=()=>openForm(id,'edit');
     document.getElementById('bLink').onclick=()=>{openForm(id,'edit');setTimeout(()=>{const b=document.getElementById('relBox');b.closest('.field').scrollIntoView({block:'center'});b.closest('.field').style.background='var(--amber-soft)';b.closest('.field').style.borderRadius='10px';b.closest('.field').style.padding='8px'},250)};
     document.getElementById('noteAdd').onclick=async()=>{const t=document.getElementById('noteIn').value.trim();if(!t)return;
+      // se a frase muda a árvore (faleceu, filho de, casado com…), vai para o Contar em vez de virar só observação
+      if(canWrite&&typeof parseConta==='function'){ const ok=x=>{const a=parseConta(x); return a.length&&a.some(y=>y.t!=='?');};
+        const cand=ok(t)?t:ok(call(p)+' '+t)?call(p)+' '+t:null; if(cand){ openTell(cand); return; } }
       p.notes=[...(p.notes||[]),{t,at:new Date().toISOString().slice(0,10),by:(typeof myName==='function'?myName():'')}];
       try{await savePerson(p);openPerson(id);toast('Informação registrada')}catch(e){}};
   }
@@ -1266,6 +1269,7 @@ function parseConta(txt){
   const acts=[], L=x=>String(x).split(/\s*,\s*|\s+e\s+/i).map(y=>y.replace(/^(o|a|os|as)\s+/i,'').trim()).filter(y=>y.length>1);
   const sents=String(txt).replace(/\s+/g,' ').split(/[.;!\n]+/).map(x=>x.trim()).filter(Boolean);
   for(let s of sents){ s=s.replace(/^(e|que)\s+/i,''); let m;
+    if(/^(j[áa]|ele|ela|tamb[ée]m|n[ãa]o)\s/i.test(s)||/^(faleceu|morreu|casou)/i.test(s)){ acts.push({t:'?',s}); continue; }
     const sexW=w=>/filha|irmã|irma|mãe|mae|esposa|mulher|casada|separada|falecida/i.test(w)?'F':/filho|irmão|irmao|pai|marido|casado|separado|falecido/i.test(w)?'M':'';
     if(m=s.match(/^(.+?)\s+(?:é|e|eh)\s+(?:o\s+|a\s+)?(pai|m[ãa]e)\s+d[eoa]s?\s+(.+)$/i)) acts.push({t:'par',par:m[1],sex:/pai/i.test(m[2])?'M':'F',kids:L(m[3])});
     else if(m=s.match(/^(.+?)\s+(?:(?:é|e|eh|são|sao)\s+)?(?:o\s+|a\s+|os\s+|as\s+)?(filh[oa]s?)\s+d[eoa]s?\s+(.+)$/i)) acts.push({t:'kid',kids:L(m[1]),sex:sexW(m[2]),pars:L(m[3])});
@@ -1288,13 +1292,14 @@ function findByName(n){ const q=nrm(n); if(!q) return {none:true};
   hit=all.filter(p=>nrm(p.name).startsWith(q+' ')||nrm(p.name).includes(' '+q)); if(hit.length===1) return {p:hit[0]}; if(hit.length>1) return {amb:hit};
   return {none:true};
 }
-function openTell(){
+function openTell(prefill){
   if(!canWrite){ if(window.NOSSIO_GAS){ if(wantWrite&&!myCad) return openCad(); return openCode(); } return; }
   openSheet(`<h2>✍️ Contar</h2><div class="sub">Escreva em frases simples, uma por linha ou separadas por ponto. Exemplos:<br>
   • <i>Carol é filha de Jacy e Márcia</i><br>• <i>Diego é casado com Florence</i><br>• <i>Diego e Florence são pais de Leo e Iza</i><br>• <i>Leo é irmão de Iza</i><br>• <i>Liziane faleceu</i><br>Quem ainda não estiver na árvore é criado na hora.</div>
   <textarea id="tTxt" class="inp cad" rows="4" style="resize:vertical" placeholder="O que você sabe…"></textarea>
   <button class="btn green" id="tPrev" style="width:100%;margin-top:8px">Ver o que vai mudar</button>
   <div id="tOut" style="margin-top:10px"></div>`);
+  setTimeout(()=>{ if(prefill){ document.getElementById('tTxt').value=prefill; document.getElementById('tPrev').click(); } },0);
   document.getElementById('tPrev').onclick=()=>{
     const acts=parseConta(document.getElementById('tTxt').value), plan=[], novos={}, lines=[];
     const who=(n,sex)=>{ const k=nrm(n); if(novos[k]) return novos[k]; const r=findByName(n);
