@@ -115,7 +115,7 @@ a.pl{color:var(--green);font-weight:600;text-decoration:none;border-bottom:1px d
 </head>
 <body>
 <header><div class="hTop"><h1>Nossi<span>o</span></h1><div class="vSeg"><button id="vTree" class="on">🌳 Planta</button><button id="vPlan">🪐 Planetas</button></div><span class="tag">ENSAIO</span></div>
-<div class="hBtns"><button class="hb big" id="tellBtn" hidden style="background:var(--green,#2e6b4f);color:#fff;border-color:transparent"><b>✍️ Contar</b><small>Escreva o que você sabe, do seu jeito: “Carol é filha de Jacy e Márcia”, “Warley faleceu”. O Nossio monta a árvore.</small></button><button class="hb big" id="incBtn" hidden><b>➕ Incluir pessoa</b><small>Adicione uma pessoa: o nome e de quem ela é parente.</small></button><button class="hb big" id="findBtn" hidden><b>🎯 Centralizar</b><small>Procure alguém e vá direto até a pessoa na árvore.</small></button><button class="hb" id="askBtn" hidden>❓ Perguntar</button><button class="hb" id="kinBtn" hidden>🔀 Comparar</button><button class="hb" id="newsBtn" hidden>🔔 Novidades</button><button class="hb" id="dupBtn" hidden>👥 Duplicados</button><button class="hb" id="codeBtn" hidden>🔑 Tenho um código</button></div></header>
+<div class="hBtns"><button class="hb big" id="tellBtn" hidden style="background:var(--green,#2e6b4f);color:#fff;border-color:transparent"><b>✍️ Contar</b><small>Escreva o que você sabe, do seu jeito: “Carol é filha de Jacy e Márcia”, “Warley faleceu”. O Nossio monta a árvore.</small></button><button class="hb big" id="incBtn" hidden><b>➕ Incluir pessoa</b><small>Escolha um parente que já está na árvore e diga quem é a pessoa nova.</small></button><button class="hb big" id="findBtn" hidden><b>🎯 Centralizar</b><small>Procure alguém e vá direto até a pessoa na árvore.</small></button><button class="hb" id="askBtn" hidden>❓ Perguntar</button><button class="hb" id="kinBtn" hidden>🔀 Comparar</button><button class="hb" id="newsBtn" hidden>🔔 Novidades</button><button class="hb" id="dupBtn" hidden>👥 Duplicados</button><button class="hb" id="codeBtn" hidden>🔑 Tenho um código</button></div></header>
 <div class="status" id="status">Carregando…</div>
 <div id="cadBar" hidden style="margin:0 16px 8px;padding:10px 12px;border:1px solid #e0c48a;background:#fff6e3;border-radius:12px;font-size:14px;display:flex;gap:10px;align-items:center"><span style="flex:1">Falta pouco: diga quem você é na árvore e complete o cadastro.</span><button class="btn green" id="cadBtn" style="padding:8px 14px">Completar</button></div>
 <div class="treewrap" id="wrap"><div id="zoomBox"><div class="tree" id="tree"></div></div><div id="emptyBox"></div></div>
@@ -1223,29 +1223,41 @@ async function saveForm(baseId,kind,dec){
 document.getElementById('incBtn').onclick=document.getElementById('fab').onclick=()=>{
   if(!canWrite){ if(window.NOSSIO_GAS){ if(wantWrite&&!myCad) return openCad(); return openCode(); } return; }
   const list=people.filter(p=>!p.unnamed).sort((a,b)=>a.name.localeCompare(b.name,'pt-BR'));
-  openSheet(`<h2>Incluir pessoa</h2>
-  <label class="lbl">1. Nome da pessoa nova</label><input id="incNome" class="inp cad" placeholder="Ex.: Florice" autocomplete="off">
-  <label class="lbl">Sexo</label><select id="incSexo" class="inp cad"><option value="">— não sei —</option><option value="F">Feminino</option><option value="M">Masculino</option></select>
-  <label class="lbl">2. Ela é…</label><select id="incRel" class="inp cad"><option value="child">filho(a) de</option><option value="sibling">irmão(ã) de</option><option value="spouse">marido / esposa de</option><option value="parent">pai / mãe de</option></select>
-  <div id="incWho"><label class="lbl">3. …de quem? Digite o nome</label><input id="incQ" class="inp cad" placeholder="Procurar na árvore…" autocomplete="off">
-  <div id="incSel" class="sub" style="margin:6px 0;font-weight:600;color:var(--ink)"></div>
-  <div id="incL" style="margin-top:4px;max-height:30vh;overflow:auto"></div></div>
-  <div id="incErr" style="color:var(--red);font-size:14px;min-height:18px"></div>
-  <button class="btn green" id="incSave" style="width:100%;font-size:17px;padding:14px">Salvar</button>`);
-  let sel=null; // {id} existente ou {novo:'Nome', sexo}
-  const showSel=()=>{ const e=document.getElementById('incSel'); if(!sel){e.textContent='';return} e.innerHTML=sel.id?'Escolhido: '+esc(byId(sel.id).name):`Será criado(a) também: <b>${esc(sel.novo)}</b> <select id="incNovoSexo" style="margin-left:6px"><option value="">sexo?</option><option value="F" ${sel.sexo==='F'?'selected':''}>mulher</option><option value="M" ${sel.sexo==='M'?'selected':''}>homem</option></select>`; const ns=document.getElementById('incNovoSexo'); if(ns) ns.onchange=()=>sel.sexo=ns.value; };
-  const draw=q=>{ const raw=q.trim(); q=nrm(q); const hits=list.filter(p=>!q||nrm(p.name+' '+(p.apelido||'')).includes(q)).slice(0,60);
-    let h=hits.map(p=>`<button class="btn ghost" data-inc="${p.id}" style="display:block;width:100%;text-align:left;margin-bottom:6px;${sel&&p.id===sel.id?'background:#e3f1e8;border-color:var(--green,#2e6b4f)':''}">${sel&&p.id===sel.id?'✔ ':''}${esc(p.name)}${p.apelido?' <span class="sub" style="margin:0">('+esc(p.apelido)+')</span>':''}</button>`).join('');
-    document.getElementById('incL').innerHTML=h||(raw.length>=2?`<div class="sub">"${esc(fmtName(raw))}" não está na árvore. Só incluímos quem tem um parente que já está aqui — procure outro parente da pessoa.</div>`:'<div class="sub">Digite um nome.</div>');
-    document.querySelectorAll('[data-inc]').forEach(b=>b.onclick=()=>{ sel={id:b.dataset.inc}; showSel(); draw(document.getElementById('incQ').value); });
-    const nv=document.getElementById('incNovo'); if(nv) nv.onclick=()=>{ sel={novo:fmtName(raw),sexo:''}; showSel(); }; };
-  draw(''); document.getElementById('incQ').oninput=e=>draw(e.target.value);
-  document.getElementById('incRel').onchange=e=>{ document.getElementById('incWho').style.display=e.target.value==='none'?'none':''; };
+  openSheet(`<h2>Incluir pessoa</h2><div class="sub">Três passos rápidos. Só entra quem tem um parente que já está na árvore.</div>
+  <label class="lbl" style="font-size:14px;color:var(--ink)"><b>1. Quem da árvore é parente da pessoa nova?</b></label>
+  <input id="incQ" class="inp cad" placeholder="Digite o nome — ex.: Jacy" autocomplete="off">
+  <div id="incSel" style="margin:8px 0"></div>
+  <div id="incL" style="max-height:32vh;overflow:auto"></div>
+  <div id="incStep2" style="display:none">
+    <label class="lbl" style="font-size:14px;color:var(--ink)"><b>2. A pessoa nova é… <span id="incDe"></span></b></label>
+    <select id="incRel" class="inp cad"><option value="child">filho / filha</option><option value="sibling">irmão / irmã</option><option value="spouse">marido / esposa</option><option value="parent">pai / mãe</option></select>
+    <label class="lbl" style="font-size:14px;color:var(--ink)"><b>3. Qual o nome da pessoa nova?</b></label>
+    <input id="incNome" class="inp cad" placeholder="Ex.: Carol Ferreira" autocomplete="off">
+    <label class="lbl">Sexo (se souber)</label><select id="incSexo" class="inp cad"><option value="">— não sei —</option><option value="F">Feminino</option><option value="M">Masculino</option></select>
+    <div id="incErr" style="color:var(--red);font-size:14px;min-height:18px"></div>
+    <button class="btn green" id="incSave" style="width:100%;font-size:17px;padding:14px">Salvar</button>
+  </div>`);
+  let sel=null;
+  const showSel=()=>{ const P=sel&&byId(sel.id), e=document.getElementById('incSel');
+    if(!P){ e.innerHTML=''; document.getElementById('incStep2').style.display='none'; document.getElementById('incQ').style.display=''; return; }
+    e.innerHTML=`<div class="missing" style="display:flex;align-items:center;gap:8px"><span style="flex:1">✔ <b>${esc(P.name)}</b></span><button class="btn ghost" id="incTroca" style="padding:6px 10px">trocar</button></div>`;
+    document.getElementById('incQ').style.display='none'; document.getElementById('incL').innerHTML='';
+    document.getElementById('incDe').textContent=(P.sex==='F'?'da ':P.sex==='M'?'do ':'de ')+call(P);
+    document.getElementById('incStep2').style.display='';
+    document.getElementById('incTroca').onclick=()=>{ sel=null; showSel(); document.getElementById('incQ').value=''; draw(''); document.getElementById('incQ').focus(); };
+    setTimeout(()=>document.getElementById('incNome').focus(),50); };
+  const draw=q=>{ const raw=q.trim(); q=nrm(q); if(!q){ document.getElementById('incL').innerHTML=''; return; }
+    const hits=list.filter(p=>nrm(p.name+' '+(p.apelido||'')).includes(q)).slice(0,40);
+    document.getElementById('incL').innerHTML=hits.map(p=>{ const F=byId(p.father),M=byId(p.mother); const d=(F||M)?' <span class="sub" style="margin:0">— filho(a) de '+esc([F,M].filter(Boolean).map(call).join(' e '))+'</span>':''; return `<button class="btn ghost" data-inc="${p.id}" style="display:block;width:100%;text-align:left;margin-bottom:6px">${esc(p.name)}${d}</button>`; }).join('')
+      ||`<div class="sub">"${esc(fmtName(raw))}" não está na árvore. Procure outro parente da pessoa nova que já esteja aqui.</div>`;
+    document.querySelectorAll('[data-inc]').forEach(b=>b.onclick=()=>{ sel={id:b.dataset.inc}; showSel(); }); };
+  document.getElementById('incQ').oninput=e=>draw(e.target.value);
+  setTimeout(()=>document.getElementById('incQ').focus(),50);
   const mk=(name,sex)=>{ const np={id:newId(),name:fmtName(name),sex:sex||'',father:null,mother:null,parents:[],spouse:null,photo:null,createdAt:Date.now(),birth:'',deceased:false,death:'',apelido:'',provisional:true}; if(myId){np.createdBy=myId; np.createdByName=myName();} people.push(np); return np; };
   document.getElementById('incSave').onclick=async()=>{
     const nome=document.getElementById('incNome').value.trim(), rel=document.getElementById('incRel').value, sexo=document.getElementById('incSexo').value, err=t=>document.getElementById('incErr').textContent=t;
-    if(nome.length<2) return err('Escreva o nome da pessoa nova (passo 1).');
-    if(rel!=='none'&&!sel) return err('Passo 3: digite o nome de quem ela é parente e toque nele (ou em "criar também").');
+    if(nome.length<2) return err('Passo 3: escreva o nome da pessoa nova.');
+    if(!sel) return err('Passo 1: escolha o parente que já está na árvore.');
     const btn=document.getElementById('incSave'); btn.disabled=true; btn.textContent='Salvando…';
     warns=[]; dropIds=new Set(); const touched=new Set();
     const np=mk(nome,sexo); touched.add(np);
