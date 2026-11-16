@@ -13,8 +13,8 @@
 body{margin:0;font-family:Inter,system-ui,sans-serif;background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased;display:flex;flex-direction:column;height:100vh;height:100dvh;overflow:hidden}
 header{flex:none}.status{flex:none}
 header{position:sticky;top:0;z-index:20;background:var(--bg);border-bottom:1px solid var(--line);padding:10px 16px 10px}
-.hTop{display:flex;align-items:center;justify-content:space-between;gap:8px}
-.vSeg{display:flex;border:1px solid var(--ink);border-radius:10px;overflow:hidden}
+.hTop{display:flex;align-items:center;gap:10px;flex-wrap:nowrap}
+.vSeg{flex:none;display:flex;border:1px solid var(--ink);border-radius:10px;overflow:hidden}
 .vSeg button{border:0;background:transparent;font:inherit;font-size:13px;font-weight:600;padding:7px 10px;cursor:pointer;color:var(--ink)}
 .vSeg button.on{background:var(--ink);color:var(--paper)}
 #pcv{flex:1;min-height:0;display:block;width:100%;touch-action:none;cursor:grab;background:#0b1226}
@@ -27,17 +27,16 @@ header{position:sticky;top:0;z-index:20;background:var(--bg);border-bottom:1px s
 .pcard h4 button{border:0;background:none;font-size:18px;color:var(--muted);cursor:pointer;padding:0 2px}
 .pcard .desc{font-size:14px;margin:4px 0 8px;padding:10px 12px}
 .pcard .row button{padding:8px 12px;font-size:14px}
-.hBtns{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px}
-.hb.big{height:auto;min-height:64px;white-space:normal;text-align:left;padding:8px 12px;display:flex;flex-direction:column;gap:2px}
+.hBtns{display:flex;gap:6px;margin-left:auto;flex:none}
+.hb.big{height:36px;white-space:nowrap;padding:0 12px;display:flex;align-items:center}
 .hb.big b{font-size:15px}
-.hb.big small{font-weight:400;font-size:12px;line-height:1.3;opacity:.85}
+.hb.big small{display:none}
 #askBtn,#kinBtn,#newsBtn,#dupBtn,#codeBtn{display:none!important}
 .hBtns:empty{display:none}
 .hb{height:38px;border:1px solid var(--ink);border-radius:10px;background:transparent;color:var(--ink);font:inherit;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 4px}
-@media (max-width:620px){.hBtns{grid-template-columns:repeat(3,1fr);gap:6px}.hb.big{min-height:0;height:40px;padding:0 4px;align-items:center;justify-content:center;text-align:center}.hb.big small{display:none}.hb.big .lg{display:none}.hb.big b{font-size:14px;white-space:nowrap}}
 h1{font-family:Fraunces,serif;font-size:24px;margin:0;letter-spacing:-.3px}
 h1 span{color:var(--green)}
-.tag{font-size:11px;background:var(--amber-soft);color:var(--amber);padding:3px 8px;border-radius:8px;font-weight:600}
+.tag{flex:none;font-size:11px;background:var(--amber-soft);color:var(--amber);padding:3px 8px;border-radius:8px;font-weight:600}
 .status{font-size:12px;color:var(--muted);padding:8px 16px 0}
 .treewrap{flex:1;min-height:0;overflow:auto;-webkit-overflow-scrolling:touch;padding:16px 16px 110px;touch-action:pan-x pan-y}
 #zoomBox{position:relative;overflow:hidden;margin:0 auto}
@@ -111,11 +110,14 @@ a.pl{color:var(--green);font-weight:600;text-decoration:none;border-bottom:1px d
 .photoEdit{display:flex;align-items:center;gap:12px;margin-bottom:12px}
 .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:var(--paper);padding:10px 16px;border-radius:12px;font-size:14px;z-index:60;opacity:0;transition:opacity .2s;pointer-events:none;max-width:90vw;text-align:center}
 .toast.on{opacity:1}
+@media (max-width:620px){header{padding:8px 10px}.hTop{gap:6px}h1{font-size:19px}.tag{display:none}.vSeg button{padding:6px 9px;font-size:16px}.vSeg .lg{display:none}.hBtns{gap:4px}.hb.big{height:34px;padding:0 7px}.hb.big b{font-size:13px}.hb.big .lg{display:none}}
+@media (max-width:440px){.hb.big .lg2{display:none}}
+@media (max-width:360px){.hb.big b{font-size:12px}.hb.big{padding:0 5px}}
 </style>
 </head>
 <body>
-<header><div class="hTop"><h1>Nossi<span>o</span></h1><div class="vSeg"><button id="vTree" class="on">🌳 Planta</button><button id="vPlan">🪐 Planetas</button></div><span class="tag">ENSAIO</span></div>
-<div class="hBtns"><button class="hb big" id="tellBtn" hidden style="background:var(--green,#2e6b4f);color:#fff;border-color:transparent"><b>✍️ Contar</b><small>Escreva o que você sabe, do seu jeito: “Carol é filha de Jacy e Márcia”, “Warley faleceu”. O Nossio monta a árvore.</small></button><button class="hb big" id="incBtn" hidden><b>➕ Incluir<span class="lg"> pessoa</span></b><small>Escolha um parente que já está na árvore e diga quem é a pessoa nova.</small></button><button class="hb big" id="findBtn" hidden><b>🎯 Centralizar</b><small>Procure alguém e vá direto até a pessoa na árvore.</small></button><button class="hb" id="askBtn" hidden>❓ Perguntar</button><button class="hb" id="kinBtn" hidden>🔀 Comparar</button><button class="hb" id="newsBtn" hidden>🔔 Novidades</button><button class="hb" id="dupBtn" hidden>👥 Duplicados</button><button class="hb" id="codeBtn" hidden>🔑 Tenho um código</button></div></header>
+<header><div class="hTop"><h1>Nossi<span>o</span></h1><div class="vSeg"><button id="vTree" class="on" title="Planta">🌳<span class="lg"> Planta</span></button><button id="vPlan" title="Planetas">🪐<span class="lg"> Planetas</span></button></div><span class="tag">ENSAIO</span><div class="hBtns"><button class="hb big" id="tellBtn" title="Escreva o que você sabe, do seu jeito: “Carol é filha de Jacy e Márcia”, “Warley faleceu”. O Nossio monta a árvore." hidden style="background:var(--green,#2e6b4f);color:#fff;border-color:transparent"><b>✍️ Contar</b><small>Escreva o que você sabe, do seu jeito: “Carol é filha de Jacy e Márcia”, “Warley faleceu”. O Nossio monta a árvore.</small></button><button class="hb big" id="incBtn" title="Escolha um parente que já está na árvore e diga quem é a pessoa nova." hidden><b>➕ Incluir<span class="lg"> pessoa</span></b><small>Escolha um parente que já está na árvore e diga quem é a pessoa nova.</small></button><button class="hb big" id="findBtn" title="Procure alguém e vá direto até a pessoa na árvore." hidden><b>🎯<span class="lg2"> Centralizar</span></b><small>Procure alguém e vá direto até a pessoa na árvore.</small></button><button class="hb" id="askBtn" hidden>❓ Perguntar</button><button class="hb" id="kinBtn" hidden>🔀 Comparar</button><button class="hb" id="newsBtn" hidden>🔔 Novidades</button><button class="hb" id="dupBtn" hidden>👥 Duplicados</button><button class="hb" id="codeBtn" hidden>🔑 Tenho um código</button></div></div>
+</header>
 <div class="status" id="status">Carregando…</div>
 <div id="cadBar" hidden style="margin:0 16px 8px;padding:10px 12px;border:1px solid #e0c48a;background:#fff6e3;border-radius:12px;font-size:14px;display:flex;gap:10px;align-items:center"><span style="flex:1">Falta pouco: diga quem você é na árvore e complete o cadastro.</span><button class="btn green" id="cadBtn" style="padding:8px 14px">Completar</button></div>
 <div class="treewrap" id="wrap"><div id="zoomBox"><div class="tree" id="tree"></div></div><div id="emptyBox"></div></div>
@@ -132,7 +134,7 @@ a.pl{color:var(--green);font-weight:600;text-decoration:none;border-bottom:1px d
 /* ---------- Nossio fora do Claude: dados no Google (Apps Script) ---------- */
 window.NOSSIO_GAS=true;
 // versão da tela: se o celular estiver com uma cópia antiga guardada, busca a nova e recarrega sozinho (uma vez)
-const APPVER='v20261116-2040';
+const APPVER='v20261116-2050';
 (async()=>{ try{ const t=await fetch(location.pathname+'?nv='+Date.now(),{cache:'no-store'}).then(r=>r.text()); const m=t.match(/APPVER='([^']+)'/);
   if(m&&m[1]!==APPVER&&sessionStorage.getItem('nossio-rl')!==m[1]){ sessionStorage.setItem('nossio-rl',m[1]); location.replace(location.pathname+'?nv='+m[1]+location.hash); } }catch(e){} })();
 const CODEKEY='nossio-code'; let MEMCODE='';
