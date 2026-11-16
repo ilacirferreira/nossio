@@ -113,7 +113,7 @@ a.pl{color:var(--green);font-weight:600;text-decoration:none;border-bottom:1px d
 <header><div class="hTop"><h1>Nossi<span>o</span></h1><div class="vSeg"><button id="vTree" class="on">🌳 Planta</button><button id="vPlan">🪐 Planetas</button></div><span class="tag">ENSAIO</span></div>
 <div class="hBtns"><button class="hb" id="incBtn" hidden style="background:var(--green,#2e6b4f);color:#fff;border-color:transparent">➕ Incluir pessoa</button><button class="hb" id="findBtn" hidden>🎯 Centralizar</button><button class="hb" id="askBtn" hidden>❓ Perguntar</button><button class="hb" id="tellBtn" hidden>✍️ Contar</button><button class="hb" id="kinBtn" hidden>🔀 Comparar</button><button class="hb" id="newsBtn" hidden>🔔 Novidades</button><button class="hb" id="dupBtn" hidden>👥 Duplicados</button><button class="hb" id="codeBtn" hidden>🔑 Tenho um código</button></div></header>
 <div class="status" id="status">Carregando…</div>
-<div id="cadBar" hidden style="margin:0 16px 8px;padding:10px 12px;border:1px solid #e0c48a;background:#fff6e3;border-radius:12px;font-size:14px;display:flex;gap:10px;align-items:center"><span style="flex:1">Para incluir parentes, primeiro complete o seu cadastro.</span><button class="btn green" id="cadBtn" style="padding:8px 14px">Completar</button></div>
+<div id="cadBar" hidden style="margin:0 16px 8px;padding:10px 12px;border:1px solid #e0c48a;background:#fff6e3;border-radius:12px;font-size:14px;display:flex;gap:10px;align-items:center"><span style="flex:1">Falta pouco: diga quem você é na árvore e complete o cadastro.</span><button class="btn green" id="cadBtn" style="padding:8px 14px">Completar</button></div>
 <div class="treewrap" id="wrap"><div id="zoomBox"><div class="tree" id="tree"></div></div><div id="emptyBox"></div></div>
 <div id="pinfo" hidden></div><canvas id="pcv" hidden></canvas>
 <div class="pcard" id="pcard" hidden></div>
@@ -269,6 +269,7 @@ async function init(){
     wantWrite=true; canWrite=false;
     try{ myId = await user.id(); const d = await db.collection('cadastro').doc(myId).get(); if(d&&d.exists){ myCad=d.data(); canWrite=true; } }catch(e){}
     showCadBar();
+    if(wantWrite&&!myCad) setTimeout(()=>{ if(!document.getElementById('sheet').classList.contains('on')) openCad(); },700);
   }
   const cb=document.getElementById('codeBtn'); if(cb){ cb.hidden=!(window.NOSSIO_GAS && !isOwner && !wantWrite); cb.onclick=openCode; }
   setStatus('Conectando…');
@@ -424,7 +425,7 @@ function lifeLine(p){const b=year(p.birth),d=year(p.death);if(p.deceased)return 
 function render(){
   if(typeof viewMode!=='undefined' && viewMode==='plan'){ Planets.refresh(); return; }
   const tree=document.getElementById('tree'), empty=document.getElementById('emptyBox'), fab=document.getElementById('fab');
-  fab.hidden = true; document.getElementById('incBtn').hidden = !((canWrite||window.NOSSIO_GAS) && people.length); document.getElementById('dupBtn').hidden = !(isOwner && canWrite && people.length>=2); updNewsBtn(); document.getElementById('kinBtn').hidden = people.length<2; document.getElementById('findBtn').hidden = people.length<2; document.getElementById('askBtn').hidden = !(askReady && people.length>=2); document.getElementById('tellBtn').hidden = !((askReady||window.NOSSIO_GAS) && canWrite && people.length>=1);
+  fab.hidden = true; document.getElementById('incBtn').hidden = !((canWrite||window.NOSSIO_GAS) && people.length); document.getElementById('dupBtn').hidden = !(isOwner && canWrite && people.length>=2); updNewsBtn(); document.getElementById('kinBtn').hidden = people.length<2; document.getElementById('findBtn').hidden = people.length<2; document.getElementById('askBtn').hidden = !(askReady && people.length>=2); document.getElementById('tellBtn').hidden = !(askReady && canWrite && people.length>=1);
   if(!people.length){
     tree.innerHTML=''; tree.style.width=tree.style.height='0'; treeW=treeH=0; applyScale(); document.getElementById('zoomCtl').hidden=true;
     empty.innerHTML = canWrite ? `<div class="empty"><h2>Vamos começar por você</h2><p>Cadastre-se primeiro. Depois toque em qualquer pessoa da árvore para incluir pais, filhos, irmãos e cônjuge.</p><button class="btn green" id="startBtn">Cadastrar-me</button></div>` : `<div class="empty"><p>A árvore ainda está vazia.</p></div>`;
@@ -614,10 +615,35 @@ function cpfOk(v){ const c=String(v||'').replace(/\D/g,''); if(c.length!==11||/^
   const dv=n=>{let s=0;for(let i=0;i<n;i++)s+=+c[i]*(n+1-i);const r=(s*10)%11;return r===10?0:r}; return dv(9)===+c[9]&&dv(10)===+c[10]; }
 function fmtCpf(v){const c=String(v||'').replace(/\D/g,'').slice(0,11);return c.replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d{1,2})$/,'$1-$2')}
 function showCadBar(){ const b=document.getElementById('cadBar'); if(!b) return; b.hidden=!(wantWrite&&!myCad); b.style.display=b.hidden?'none':'flex'; document.getElementById('cadBtn').onclick=openCad; }
+/* entrada de quem recebeu convite: 1) quem é você na árvore  2) cadastro */
+let cadWho=null; // {personId} ou {novo:true, rel:'filho'|'conjuge'|'irmao', to:id}
+function pickPerson(title,sub,onPick,extra){
+  const list=people.filter(p=>!p.unnamed).sort((a,b)=>a.name.localeCompare(b.name,'pt-BR'));
+  openSheet(`<h2>${title}</h2><div class="sub">${sub}</div>
+  <input id="ppQ" class="inp cad" placeholder="Digite um nome para procurar…" autocomplete="off">
+  <div id="ppL" style="margin-top:8px;max-height:46vh;overflow:auto"></div>${extra||''}`);
+  const draw=q=>{ q=nrm(q); document.getElementById('ppL').innerHTML=list.filter(p=>!q||nrm(p.name+' '+(p.apelido||'')).includes(q)).slice(0,60).map(p=>{ const F=byId(p.father),M=byId(p.mother); const d=(F||M)?' <span class="sub" style="margin:0">— filho(a) de '+esc([F,M].filter(Boolean).map(call).join(' e '))+'</span>':''; return `<button class="btn ghost" data-pp="${p.id}" style="display:block;width:100%;text-align:left;margin-bottom:6px">${esc(p.name)}${d}</button>`; }).join('')||'<div class="sub">Ninguém com esse nome.</div>';
+    document.querySelectorAll('[data-pp]').forEach(b=>b.onclick=()=>onPick(byId(b.dataset.pp))); };
+  draw(''); document.getElementById('ppQ').oninput=e=>draw(e.target.value);
+}
 function openCad(){
-  const c=myCad||{}, v=k=>esc(c[k]||'');
-  const opts=people.filter(p=>!p.unnamed).map(p=>`<option value="${p.id}" ${c.personId===p.id?'selected':''}>${esc(p.name)}</option>`).join('');
-  openSheet(`<h2>Seu cadastro</h2><div class="sub">Pedimos estes dados só para ter certeza de que cada pessoa é única e evitar cadastros repetidos ou inventados. O CPF fica guardado em separado: <b>só o administrador vê</b>, não aparece na árvore.</div>
+  if(myCad) return openCadForm();
+  pickPerson('Bem-vindo(a) ao Nossio! 👋','<b>Passo 1 de 2 — Quem é você?</b> Procure o seu nome na árvore e toque nele. Se você ainda não está aqui, toque no botão lá embaixo.',
+    p=>{ cadWho={personId:p.id}; openCadForm(p); },
+    `<button class="btn green" id="ppNone" style="width:100%;margin-top:10px">Ainda não estou na árvore</button>`);
+  document.getElementById('ppNone').onclick=()=>{
+    openSheet(`<h2>Como você entra na família?</h2><div class="sub"><b>Passo 1 de 2.</b> Escolha uma opção e depois a pessoa.</div>
+      <button class="btn ghost" data-r="filho" style="display:block;width:100%;margin-bottom:8px">Sou filho(a) de alguém que está na árvore</button>
+      <button class="btn ghost" data-r="conjuge" style="display:block;width:100%;margin-bottom:8px">Sou marido / esposa de alguém da árvore</button>
+      <button class="btn ghost" data-r="irmao" style="display:block;width:100%">Sou irmão(ã) de alguém da árvore</button>`);
+    const T={filho:'De quem você é filho(a)?',conjuge:'Com quem você é casado(a)?',irmao:'De quem você é irmão(ã)?'};
+    document.querySelectorAll('[data-r]').forEach(b=>b.onclick=()=>pickPerson(T[b.dataset.r],'Procure e toque no nome.',p=>{ cadWho={novo:true,rel:b.dataset.r,to:p.id}; openCadForm(null); }));
+  };
+}
+function openCadForm(pre){
+  const c=myCad||{}, v=k=>esc(c[k]||(k==='nome'&&pre&&!pre.unnamed?pre.name:''));
+  const novo=!myCad&&cadWho&&cadWho.novo;
+  openSheet(`<h2>${myCad?'Seu cadastro':'Passo 2 de 2 — Seus dados'}</h2><div class="sub">Pedimos estes dados só para ter certeza de que cada pessoa é única e evitar cadastros repetidos ou inventados. O CPF fica guardado em separado: <b>só o administrador vê</b>, não aparece na árvore.</div>
   <label class="lbl">Nome completo *</label><input id="cNome" class="inp cad" value="${v('nome')}" autocomplete="name">
   <label class="lbl">CPF *</label><input id="cCpf" class="inp cad" inputmode="numeric" value="${v('cpf')}" placeholder="000.000.000-00">
   <label class="lbl">Cidade onde mora (e estado) *</label><input id="cCid" class="inp cad" value="${v('cidade')}" placeholder="Ex.: Belo Horizonte - MG">
@@ -629,7 +655,7 @@ function openCad(){
   <label class="lbl">Cidade onde nasceu (opcional)</label><input id="cNat" class="inp cad" value="${v('naturalidade')}">
   <label class="lbl">Escolas onde estudou (opcional)</label><input id="cEsc" class="inp cad" value="${v('escolas')}" placeholder="Separe por vírgula">
   <label class="lbl">Onde trabalha / profissão (opcional)</label><input id="cTrab" class="inp cad" value="${v('trabalho')}">
-  <label class="lbl">Quem é você na árvore? (opcional)</label><select id="cPes" class="inp cad"><option value="">— ainda não estou na árvore —</option>${opts}</select>
+  ${novo?`<label class="lbl">Sexo *</label><select id="cSexo" class="inp cad"><option value="">— escolha —</option><option value="F">Feminino</option><option value="M">Masculino</option></select>`:''}
   <label class="check" style="margin-top:12px"><input type="checkbox" id="cOk" ${c.aceite?'checked':''}> Concordo que estes dados sejam usados só para me identificar no Nossio.</label>
   <div id="cErr" style="color:var(--red);font-size:14px;min-height:18px"></div>
   <button class="btn green" id="cSave" style="width:100%">Salvar cadastro</button>`);
@@ -645,9 +671,22 @@ function openCad(){
     if(!full(g('cMae'))) return err('Escreva o nome completo da mãe.');
     const paiNC=document.getElementById('cPaiNC').checked;
     if(!paiNC && !full(g('cPai'))) return err('Escreva o nome completo do pai, ou marque "Não consta".');
+    const sexo=novo?g('cSexo'):''; if(novo&&!sexo) return err('Escolha o sexo.');
     if(!document.getElementById('cOk').checked) return err('Marque a concordância para continuar.');
-    const data={nome,cpf:fmtCpf(g('cCpf')),cidade:g('cCid'),apelido:g('cApe'),nascimento:g('cNasc'),naturalidade:g('cNat'),mae:fmtName(g('cMae')),pai:paiNC?'':fmtName(g('cPai')),paiNaoConsta:paiNC,escolas:g('cEsc'),trabalho:g('cTrab'),personId:g('cPes')||null,aceite:true,atualizado:Date.now()};
-    try{ await db.collection('cadastro').doc(myId).set(data); myCad=data; canWrite=true; showCadBar(); closeSheet(); toast('Cadastro completo — agora você pode incluir parentes'); render(); }
+    const data={nome,cpf:fmtCpf(g('cCpf')),cidade:g('cCid'),apelido:g('cApe'),nascimento:g('cNasc'),naturalidade:g('cNat'),mae:fmtName(g('cMae')),pai:paiNC?'':fmtName(g('cPai')),paiNaoConsta:paiNC,escolas:g('cEsc'),trabalho:g('cTrab'),personId:(c.personId||(cadWho&&cadWho.personId)||null),aceite:true,atualizado:Date.now()};
+    try{ await db.collection('cadastro').doc(myId).set(data); myCad=data; canWrite=true;
+      // liga quem se cadastrou à árvore
+      if(cadWho&&cadWho.personId){ const me=byId(cadWho.personId); if(me){ me.provisional=false; if(data.apelido&&!me.apelido) me.apelido=data.apelido; await savePerson(me); } }
+      else if(novo){ const to=byId(cadWho.to), np={id:newId(),name:nome,sex:sexo,father:null,mother:null,parents:[],spouse:null,photo:null,createdAt:Date.now(),createdBy:myId,createdByName:myName(),birth:data.nascimento||'',deceased:false,death:'',apelido:data.apelido||''};
+        const touched=[np];
+        if(to&&cadWho.rel==='filho'){ if(to.sex==='F') np.mother=to.id; else np.father=to.id; const S=byId(to.spouse); if(S){ if(S.sex==='F'&&!np.mother) np.mother=S.id; else if(!np.father) np.father=S.id; } }
+        if(to&&cadWho.rel==='irmao'){ np.father=to.father; np.mother=to.mother; }
+        if(to&&cadWho.rel==='conjuge'&&!to.spouse){ np.spouse=to.id; to.spouse=np.id; touched.push(to); }
+        np.parents=[np.father,np.mother].filter(Boolean); people.push(np); data.personId=np.id;
+        for(const t of touched) await savePerson(t); await db.collection('cadastro').doc(myId).set(data); }
+      cadWho=null; showCadBar(); closeSheet(); render();
+      openSheet(`<h2>Pronto! 🎉</h2><div class="sub">Você já está na árvore. Agora é só tocar em <b>➕ Incluir pessoa</b>, lá em cima, para incluir os parentes que estiverem faltando — filhos, irmãos, cônjuges, pais.</div><button class="btn green" id="okGo" style="width:100%">Entendi</button>`);
+      document.getElementById('okGo').onclick=closeSheet; }
     catch(e){ err(e&&/CPF/.test(e.message||'')?String(e.message).replace(/^.*?:\s*/,''):'Não foi possível salvar agora. Tente de novo.'); }
   };
 }
@@ -844,7 +883,7 @@ function openAsk(mode){
   document.getElementById('sheetBody').insertAdjacentHTML('beforeend',`
     <div id="chatBox">${chat.map(box).join('')}</div>
     <div class="row" style="flex-wrap:nowrap;margin-top:10px"><input id="askIn" class="inp" placeholder="${mode==='ask'?'Sua pergunta…':'O que você sabe…'}"><button class="btn green" id="askGo">Enviar</button></div>
-    <div class="note">Só trata de parentesco entre os membros da árvore. Cada mensagem usa o seu limite de uso do Claude.</div>`);
+    <div class="note">Só trata de parentesco entre os membros da árvore. Funciona com a inteligência do Claude.</div>`);
   const cb=document.getElementById('chatBox'); wireLinks(cb);
   const go=async()=>{
     const q=document.getElementById('askIn').value.trim(); if(!q||askCtl) return;
@@ -1201,6 +1240,8 @@ function openTell(){
     try{ await savePerson(p); closeSheet(); toast('Registrado — obrigado!'); render(); }catch(e){ err('Não foi possível salvar agora.'); } };
 }
 document.getElementById('findBtn').onclick=openFind;
+// Contar/Perguntar com IA no Nossio da web: o servidor (Apps Script) chama o Claude com a chave do Ilacir
+if(window.NOSSIO_GAS){ (async()=>{ try{ if(await gas('iaOk')){ sampleFn={json:async(turns)=>{ const t=String(await gas('ia',{turns})||''); const i=t.indexOf('{'), j=t.lastIndexOf('}'); return JSON.parse(i>=0&&j>i?t.slice(i,j+1):'{}'); }}; toolsOk=false; askReady=true; render(); } }catch(e){} })(); }
 (async()=>{try{const sf=await claude.use('sample'); if(!sf) return; sampleFn=sf; try{const L=await sf.limits(); toolsOk=!!L?.tools}catch(e){} askReady=true; render();}catch(e){}})();
 /* ---------- modo Planetas (cada família é um planeta; casamentos são pontes) ---------- */
 const Planets=(()=>{
