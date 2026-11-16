@@ -144,7 +144,9 @@ const GDB={collection:(c)=>({
 const GUSER={can:async()=>{const m=await meP(); return m.role!=='view'}, isOwner:async()=>{const m=await meP(); return m.role==='owner'}, canEdit:async()=>{const m=await meP(); return m.role==='owner'}, id:async()=>{const m=await meP(); return m.uid}};
 window.claude={use:async n=>n==='db'?GDB:n==='user'?GUSER:null};
 // convite pelo link: ...exec?c=NOS-XXXX-XXXX já entra com o código
-window.__locReady=(async()=>{ try{ const q=new URLSearchParams(location.search); const c=String(q.get('convite')||q.get('c')||'').trim().toUpperCase(); if(c){ LSset(CODEKEY,c); history.replaceState(null,'',location.pathname); } }catch(e){} })();
+window.__locReady=(async()=>{ try{ const q=new URLSearchParams(location.search); const c=String(q.get('convite')||q.get('c')||'').trim().toUpperCase(); if(c){ LSset(CODEKEY,c); history.replaceState(null,'',location.pathname); } }catch(e){}
+  // link único: quem não tem código ganha um código próprio deste aparelho
+  if(!LSget(CODEKEY)){ const A='ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let k='DEV-'; const r=new Uint32Array(16); try{crypto.getRandomValues(r)}catch(e){for(let i=0;i<16;i++)r[i]=Math.random()*1e9} for(let i=0;i<16;i++) k+=A[r[i]%A.length]; LSset(CODEKEY,k); } })();
 </script>
 <script>
 /* ---------- estado ---------- */
@@ -269,7 +271,6 @@ async function init(){
     wantWrite=true; canWrite=false;
     try{ myId = await user.id(); const d = await db.collection('cadastro').doc(myId).get(); if(d&&d.exists){ myCad=d.data(); canWrite=true; } }catch(e){}
     showCadBar();
-    if(wantWrite&&!myCad) setTimeout(()=>{ if(!document.getElementById('sheet').classList.contains('on')) openCad(); },700);
   }
   const cb=document.getElementById('codeBtn'); if(cb){ cb.hidden=!(window.NOSSIO_GAS && !isOwner && !wantWrite); cb.onclick=openCode; }
   setStatus('Conectando…');
@@ -614,7 +615,7 @@ function openDups(){
 function cpfOk(v){ const c=String(v||'').replace(/\D/g,''); if(c.length!==11||/^(\d)\1+$/.test(c)) return false;
   const dv=n=>{let s=0;for(let i=0;i<n;i++)s+=+c[i]*(n+1-i);const r=(s*10)%11;return r===10?0:r}; return dv(9)===+c[9]&&dv(10)===+c[10]; }
 function fmtCpf(v){const c=String(v||'').replace(/\D/g,'').slice(0,11);return c.replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d{1,2})$/,'$1-$2')}
-function showCadBar(){ const b=document.getElementById('cadBar'); if(!b) return; b.hidden=!(wantWrite&&!myCad); b.style.display=b.hidden?'none':'flex'; document.getElementById('cadBtn').onclick=openCad; }
+function showCadBar(){ const b=document.getElementById('cadBar'); if(!b) return; b.hidden=true; b.style.display=b.hidden?'none':'flex'; document.getElementById('cadBtn').onclick=openCad; }
 /* entrada de quem recebeu convite: 1) quem é você na árvore  2) cadastro */
 let cadWho=null; // {personId} ou {novo:true, rel:'filho'|'conjuge'|'irmao', to:id}
 function pickPerson(title,sub,onPick,extra){
