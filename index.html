@@ -410,7 +410,7 @@ function layout(){
   const top=u=>{ let v=u; while(v.parent) v=v.parent; return v; };
   const placed=new Set(), F={n:[],c:{}};
   const inTree=(r)=>{ const s=[]; const st=[r]; while(st.length){const v=st.pop(); s.push(v); st.push(...v.kids);} return s; };
-  const addRoot=(r,side)=>{ const S=lay(r); if(F.n.length) shift(S,pack(F,S,side,ROOTGAP)); F.n.push(...S.n); merge(F.c,S.c,0); inTree(r).forEach(v=>placed.add(v)); };
+  const blocks=[]; const addRoot=(r,side)=>{ const S=lay(r); if(F.n.length) shift(S,pack(F,S,side,ROOTGAP)); F.n.push(...S.n); merge(F.c,S.c,0); inTree(r).forEach(v=>placed.add(v)); blocks.push({r,S}); };
   const first=top(unitOf[people[0].id]); addRoot(first,1);
   let guard=0;
   while(placed.size<units.length && guard++<500){
@@ -420,6 +420,8 @@ function layout(){
     if(!found){ const r=roots.find(r=>!placed.has(r))||units.find(u=>!placed.has(u)); found={r:top(r),side:1}; }
     addRoot(found.r,found.side);
   }
+  // deslocamento escolhido pelo usuário (setas "mover a família"): cada toque anda a largura de um cartão
+  blocks.forEach(({r,S})=>{ const dx=r.m.reduce((a,m)=>a+(m.dx||0),0); if(dx) S.n.forEach(o=>o.x+=dx*W); });
   const minX=Math.min(...F.n.map(o=>o.x));
   const pos={}; F.n.forEach(o=>pos[o.id]={x:o.x-minX,y:gIdx[o.g]*H});
   return {pos};
@@ -785,6 +787,7 @@ function openPerson(id){
   if(canWrite) h+=`<button class="btn green" id="bAdd">+ Parente de ${esc(call(p))}</button><button class="btn green" id="bLink">🔗 Ligar a alguém da árvore</button><button class="btn ghost" id="bEdit">Editar</button>`;
   h+=`<button class="btn ghost" id="bCenter">🎯 Centralizar</button><button class="btn ghost" id="bKin">Comparar</button></div>`;
   if(canWrite && siblingsOf(p).length>1) h+=`<div class="row" style="margin-top:10px;align-items:center"><span class="sub" style="margin:0">Posição entre os irmãos:</span><button class="btn ghost" id="bLeft" style="padding:8px 14px">◀</button><button class="btn ghost" id="bRight" style="padding:8px 14px">▶</button><button class="btn ghost" id="bAge" style="padding:8px 12px;font-size:14px">Ordenar por idade</button></div>`;
+  if(canWrite && !p.father && !p.mother && siblingsOf(p).length<=1) h+=`<div class="row" style="margin-top:10px;align-items:center"><span class="sub" style="margin:0">Mover a família de ${esc(call(p))}:</span><button class="btn ghost" id="bSideL" style="padding:8px 14px">◀ esquerda</button><button class="btn ghost" id="bSideR" style="padding:8px 14px">direita ▶</button></div>`;
   if(canWrite&&isOwner) h+=`<div id="delBox" style="margin-top:18px"><button class="btn ghost" id="bDel" style="color:var(--red);border-color:var(--red)">Excluir ${esc(call(p))}</button></div>`;
   openSheet(h);
   wireLinks(document.getElementById('sheetBody'));
@@ -801,6 +804,8 @@ function openPerson(id){
   }
   document.getElementById('bKin').onclick=()=>openKin(people[0].id===id?null:people[0].id,id);
   document.getElementById('bCenter').onclick=()=>centerOn(id);
+  const setSide=async d=>{ p.dx=(p.dx||0)+d; try{ await savePerson(p); }catch(e){} closeSheet(); render(); setTimeout(()=>centerOn(p.id),300); };
+  if(document.getElementById('bSideL')){ document.getElementById('bSideL').onclick=()=>setSide(-1); document.getElementById('bSideR').onclick=()=>setSide(1); }
   if(document.getElementById('bLeft')){ document.getElementById('bLeft').onclick=()=>moveSibling(id,-1); document.getElementById('bRight').onclick=()=>moveSibling(id,1); document.getElementById('bAge').onclick=()=>sortByAge(id); }
   const bd=document.getElementById('bDel');
   if(bd) bd.onclick=()=>{
