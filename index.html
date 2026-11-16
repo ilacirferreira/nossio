@@ -1293,6 +1293,7 @@ function parseConta(txt){
     else if(m=s.match(/^(.+?)\s+e\s+(.+?)\s+(?:são|sao)\s+(?:os\s+)?pais\s+d[eoa]s?\s+(.+)$/i)) acts.push({t:'kid',kids:L(m[3]),sex:'',pars:[m[1],m[2]]});
     else if(m=s.match(/^(.+?)\s+(?:é|e|eh)\s+(?:o\s+|a\s+)?(irm[ãa]o?s?|irma)\s+d[eoa]s?\s+(.+)$/i)) acts.push({t:'sib',a:L(m[1]),sex:sexW(m[2]),b:L(m[3])[0]});
     else if(m=s.match(/^(.+?)\s+(?:são|sao)\s+irm[ãa]os?$/i)){ const xs=L(m[1]); acts.push({t:'sib',a:xs.slice(1),sex:'',b:xs[0]}); }
+    else if(m=s.match(/^(.+?)\s+(?:(?:é|e|eh|foi)\s+)?(?:a\s+|o\s+)?ex[\s-]?(?:esposa|mulher|marido|companheir[oa])\s+d[eoa]\s+(.+)$/i)) acts.push({t:'sp',a:m[1],b:m[2],sex:sexW(s.slice(m[1].length)),sep:true});
     else if(m=s.match(/^(.+?)\s+(?:(?:é|e|eh)\s+)?(?:casad[oa]|(?:se\s+)?casou|(?:a\s+|o\s+)?(?:esposa|mulher|marido))\s+(?:com|de|d[oa])\s+(.+)$/i)) acts.push({t:'sp',a:m[1],b:m[2],sex:sexW(s.slice(m[1].length))});
     else if(m=s.match(/^(.+?)\s+e\s+(.+?)\s+(?:são casados|sao casados|casaram|se casaram)/i)) acts.push({t:'sp',a:m[1],b:m[2],sex:''});
     else if(m=s.match(/^(.+?)\s+e\s+(.+?)\s+(?:se\s+)?separaram/i)||s.match(/^(.+?)\s+(?:(?:é|e)\s+)?separad[oa]\s+d[eoa]?\s+(.+)$/i)) acts.push({t:'sepa',a:m[1],b:m[2]});
@@ -1303,7 +1304,7 @@ function parseConta(txt){
 }
 function findByName(n){ const q=nrm(n); if(!q) return {none:true};
   const all=people.filter(p=>!p.unnamed);
-  let hit=all.filter(p=>nrm(p.name)===q); if(hit.length===1) return {p:hit[0]};
+  let hit=all.filter(p=>nrm(p.name)===q); if(hit.length===1) return {p:hit[0],exact:q.includes(' ')};
   hit=all.filter(p=>nrm(p.name).split(' ')[0]===q||nrm(p.apelido)===q); if(hit.length===1) return {p:hit[0]}; if(hit.length>1) return {amb:hit};
   hit=all.filter(p=>nrm(p.name).startsWith(q+' ')||nrm(p.name).includes(' '+q)); if(hit.length===1) return {p:hit[0]}; if(hit.length>1) return {amb:hit};
   return {none:true};
@@ -1316,16 +1317,19 @@ function openTell(prefill){
   <button class="btn green" id="tPrev" style="width:100%;margin-top:8px">Ver o que vai mudar</button>
   <div id="tOut" style="margin-top:10px"></div>`);
   setTimeout(()=>{ if(prefill){ document.getElementById('tTxt').value=prefill; document.getElementById('tPrev').click(); } },0);
+  const tellOv={}; // nomes parecidos: 'E' = é a pessoa da árvore, 'N' = é outra pessoa (nova)
   document.getElementById('tPrev').onclick=()=>{
-    const acts=parseConta(document.getElementById('tTxt').value), plan=[], novos={}, lines=[];
+    const acts=parseConta(document.getElementById('tTxt').value), plan=[], novos={}, lines=[], fuzzy={};
+    const ctxOf=p=>{ const F=byId(p.father),M=byId(p.mother),S=byId(p.spouse); return (F||M)?'filho(a) de '+[F,M].filter(Boolean).map(call).join(' e '):S?'cônjuge de '+call(S):''; };
     const who=(n,sex)=>{ const k=nrm(n); if(novos[k]) return novos[k]; const r=findByName(n);
-      if(r.p) return {p:r.p,label:esc(r.p.name)}; if(r.amb) return {amb:r.amb,label:esc(fmtName(n))};
+      if(r.p&&!r.exact&&tellOv[k]!=='E'){ fuzzy[k]={n:fmtName(n),p:r.p}; if(tellOv[k]==='N') return novos[k]={novo:fmtName(n),sex:sex||'',label:`<b>${esc(fmtName(n))}</b> <span class="sub" style="margin:0">(nova)</span>`}; }
+      if(r.p) return {p:r.p,label:esc(r.p.name)+(ctxOf(r.p)?` <span class="sub" style="margin:0">(${esc(ctxOf(r.p))})</span>`:'')}; if(r.amb) return {amb:r.amb,label:esc(fmtName(n))};
       return novos[k]={novo:fmtName(n),sex:sex||'',label:`<b>${esc(fmtName(n))}</b> <span class="sub" style="margin:0">(nova)</span>`}; };
     for(const a of acts){
       if(a.t==='kid'){ const ps=a.pars.map(x=>who(x)), ks=a.kids.map(x=>who(x,a.sex)); plan.push({...a,ps,ks}); lines.push(`${ks.map(k=>k.label).join(', ')} → ${a.sex==='F'?'filha':a.sex==='M'?'filho':'filho(a)'}${ks.length>1?'s':''} de ${ps.map(k=>k.label).join(' e ')}`); }
       else if(a.t==='par'){ const P=who(a.par,a.sex), ks=a.kids.map(x=>who(x)); plan.push({t:'kid',ps:[P],ks}); lines.push(`${P.label} → ${a.sex==='M'?'pai':'mãe'} de ${ks.map(k=>k.label).join(', ')}`); }
       else if(a.t==='sib'){ const B=who(a.b), As=a.a.map(x=>who(x,a.sex)); plan.push({t:'sib',As,B}); lines.push(`${As.map(k=>k.label).join(', ')} → irmão(ã) de ${B.label}`); }
-      else if(a.t==='sp'){ const A=who(a.a,a.sex), B=who(a.b,a.sex==='F'?'M':a.sex==='M'?'F':''); plan.push({t:'sp',A,B}); lines.push(`${A.label} ❤ ${B.label} → casados`); }
+      else if(a.t==='sp'){ const A=who(a.a,a.sex), B=who(a.b,a.sex==='F'?'M':a.sex==='M'?'F':''); plan.push({t:'sp',A,B,sep:!!a.sep}); lines.push(a.sep?`${A.label} ⚡ ${B.label} → foram casados (separados)`:`${A.label} ❤ ${B.label} → casados`); }
       else if(a.t==='sepa'){ const A=who(a.a), B=who(a.b); plan.push({t:'sepa',A,B}); lines.push(`${A.label} ⚡ ${B.label} → separados`); }
       else if(a.t==='dead'){ const A=who(a.a); plan.push({t:'dead',A}); lines.push(`${A.label} → falecido(a) †`); }
       else lines.push(`<span style="color:var(--red)">Não entendi: "${esc(a.s)}"</span>`);
@@ -1336,10 +1340,13 @@ function openTell(prefill){
     const roots={}; Object.keys(par).forEach(k=>{ const r=f(k); roots[r]=roots[r]||{ex:false,nov:[]}; if(k[0]==='E') roots[r].ex=true; else roots[r].nov.push(k.slice(1)); });
     const soltos=Object.values(roots).filter(r=>!r.ex).flatMap(r=>r.nov);
     if(soltos.length){ document.getElementById('tOut').innerHTML=`<div class="missing">${lines.map(l=>'• '+l).join('<br>')}</div><div class="sub" style="color:var(--red)">Nenhuma dessas pessoas está na árvore: ${esc(soltos.map(fmtName).join(', '))}. Só incluímos quem tem um parente que já está aqui — diga de quem elas são parentes.</div>`; return; }
+    const fz=Object.entries(fuzzy);
+    const fzHtml=fz.length?`<div class="missing" style="margin-top:8px"><b>Confira:</b>${fz.map(([k,v])=>`<div style="margin-top:6px">"${esc(v.n)}" é…<br><select class="inp cad" data-fz="${esc(k)}"><option value="E" ${tellOv[k]!=='N'?'selected':''}>${esc(v.p.name)}${ctxOf(v.p)?' — '+esc(ctxOf(v.p)):''}, que já está na árvore</option><option value="N" ${tellOv[k]==='N'?'selected':''}>outra pessoa com esse nome (nova)</option></select></div>`).join('')}</div>`:'';
     const amb=plan.some(x=>[x.A,x.B,x.P,...(x.ps||[]),...(x.ks||[]),...(x.As||[])].some(y=>y&&y.amb));
-    document.getElementById('tOut').innerHTML=`<div class="missing">${lines.map(l=>'• '+l).join('<br>')||'Escreva algo acima.'}</div>`+
+    document.getElementById('tOut').innerHTML=`<div class="missing">${lines.map(l=>'• '+l).join('<br>')||'Escreva algo acima.'}</div>`+fzHtml+
       (amb?'<div class="sub" style="color:var(--red)">Há mais de uma pessoa com algum desses nomes — escreva o nome completo.</div>':'')+
       (plan.length&&!amb?`<button class="btn green" id="tGo" style="width:100%;margin-top:8px">Confirmar e salvar</button>`:'');
+    document.querySelectorAll('[data-fz]').forEach(el=>el.onchange=()=>{ tellOv[el.dataset.fz]=el.value; document.getElementById('tPrev').click(); });
     const go=document.getElementById('tGo'); if(!go) return;
     go.onclick=async()=>{ go.disabled=true; go.textContent='Salvando…'; warns=[]; dropIds=new Set(); const touched=new Set(); let last=null;
       const mkP=(name,sex)=>{ const np={id:newId(),name,sex:sex||'',father:null,mother:null,parents:[],spouse:null,photo:null,createdAt:Date.now(),birth:'',deceased:false,death:'',apelido:'',provisional:true}; if(myId){np.createdBy=myId;np.createdByName=myName();} people.push(np); touched.add(np); return np; };
@@ -1347,7 +1354,7 @@ function openTell(prefill){
       for(const a of plan){
         if(a.t==='kid'){ const ps=a.ps.map(P); for(const k of a.ks){ const K=P(k); for(const par of ps) makeParent(par,K,touched); last=K; } if(ps.length===2&&!ps[0].spouse&&!ps[1].spouse){ ps[0].spouse=ps[1].id; ps[1].spouse=ps[0].id; touched.add(ps[0]); touched.add(ps[1]); } }
         else if(a.t==='sib'){ const B=P(a.B); for(const x of a.As){ const A=P(x); makeSiblings(A,B,touched); last=A; } }
-        else if(a.t==='sp'){ const A=P(a.A), B=P(a.B); if((A.spouse&&A.spouse!==B.id)||(B.spouse&&B.spouse!==A.id)) warns.push(`${call(A)} ou ${call(B)} já tem outro cônjuge — não liguei.`); else { A.spouse=B.id; B.spouse=A.id; A.separated=B.separated=false; touched.add(A); touched.add(B); } last=A; }
+        else if(a.t==='sp'){ const A=P(a.A), B=P(a.B); if((A.spouse&&A.spouse!==B.id)||(B.spouse&&B.spouse!==A.id)) warns.push(`${call(A)} ou ${call(B)} já tem outro cônjuge — não liguei.`); else { A.spouse=B.id; B.spouse=A.id; A.separated=B.separated=!!a.sep; touched.add(A); touched.add(B); } last=A; }
         else if(a.t==='sepa'){ const A=P(a.A), B=P(a.B); if(A.spouse===B.id){ A.separated=B.separated=true; touched.add(A); touched.add(B); } else warns.push(`${call(A)} e ${call(B)} não estão como casados — não marquei separação.`); last=A; }
         else if(a.t==='dead'){ const A=P(a.A); A.deceased=true; touched.add(A); last=A; }
       }
