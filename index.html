@@ -379,7 +379,7 @@ function layout(){
     let mem=[...u.m];
     if(u.m.length===2){ const a=u.anchor||u.m[0], o=u.m.find(x=>x!==a); mem = sideOf[u.id]===-1 ? [o,a] : [a,o];
       if(!u.anchor){ mem = u.m[0].sex==='F'&&u.m[1].sex==='M' ? [u.m[1],u.m[0]] : u.m; } }
-    const CW = (u.m.length===2 && u.m.some(x=>x.separated)) ? W+90 : W; // casal separado fica mais afastado
+    const CW = (u.m.length===2 && u.m.some(x=>x.separated)) ? W+200 : W; // casal separado fica mais afastado
     const g=gen[u.m[0].id], uw=(mem.length-1)*CW+NW;
     const S={n:[],c:{}};
     if(u.kids.length){
@@ -469,7 +469,9 @@ function render(){
   const draw=list=>list.map(s=>`<line x1="${s.x1}" y1="${s.y1}" x2="${s.x2}" y2="${s.y2}" stroke="#b9ab8f" stroke-width="2" stroke-linecap="round"/>`).join('');
   // verticais por baixo, depois as interrupções, depois as horizontais por cima
   // casal separado: a linha entre os dois é quebrada por um raio
-  const bolts=segs.filter(s=>s.sep).map(s=>{ const mx=(s.x1+s.x2)/2, y=s.y1; return `<line x1="${mx-7}" y1="${y}" x2="${mx+7}" y2="${y}" stroke="var(--bg)" stroke-width="5"/><path d="M${mx-7} ${y} L${mx-2} ${y-4} L${mx+2} ${y+4} L${mx+7} ${y}" fill="none" stroke="#b9ab8f" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`; }).join('');
+  const bolts=segs.filter(s=>s.sep).map(s=>{ const x1=Math.min(s.x1,s.x2), x2=Math.max(s.x1,s.x2), mx=(x1+x2)/2, y=s.y1;
+    // casal separado: linha "recortada" (pontilhada, como corte de tesoura) com uma tesoura no meio
+    return `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="var(--bg)" stroke-width="6"/><line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="#a8977a" stroke-width="2" stroke-dasharray="7 6" stroke-linecap="round"/><rect x="${mx-14}" y="${y-13}" width="28" height="26" rx="13" fill="var(--bg)"/><text x="${mx}" y="${y+6}" text-anchor="middle" font-size="18">✂️</text>`; }).join('');
   const lines=draw(segs.filter(s=>!isH(s)))+gaps+draw(segs.filter(isH))+bolts;
   let html=`<svg width="${maxX}" height="${maxY}">${lines}</svg>`;
   people.forEach((p,i)=>{const o=pos[p.id];if(!o)return;
