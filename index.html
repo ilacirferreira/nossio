@@ -1215,11 +1215,17 @@ async function saveForm(baseId,kind,dec){
 document.getElementById('incBtn').onclick=document.getElementById('fab').onclick=()=>{
   if(!canWrite){ if(window.NOSSIO_GAS){ if(wantWrite&&!myCad) return openCad(); return openCode(); } return; }
   const list=people.filter(p=>!p.unnamed).sort((a,b)=>a.name.localeCompare(b.name,'pt-BR'));
-  openSheet(`<h2>Incluir pessoa</h2><div class="sub">A pessoa nova é parente de quem já está na árvore? Escolha abaixo e depois diga se é filho(a), irmão(ã) ou cônjuge.</div>
-  <input id="incQ" class="inp cad" placeholder="Digite um nome para procurar…" autocomplete="off">
-  <div id="incL" style="margin-top:8px;max-height:52vh;overflow:auto"></div>`);
+  openSheet(`<h2>Incluir pessoa</h2>
+  <label class="lbl">1. Nome da pessoa nova</label><input id="incNome" class="inp cad" placeholder="Ex.: Carol Ferreira" autocomplete="off">
+  <label class="lbl">2. Ela é…</label><select id="incRel" class="inp cad"><option value="child">filho(a) de</option><option value="sibling">irmão(ã) de</option><option value="spouse">marido / esposa de</option></select>
+  <label class="lbl">3. …de quem? Toque no nome</label><input id="incQ" class="inp cad" placeholder="Procurar na árvore…" autocomplete="off">
+  <div id="incL" style="margin-top:8px;max-height:40vh;overflow:auto"></div>
+  <div id="incErr" style="color:var(--red);font-size:14px;min-height:18px"></div>`);
   const draw=q=>{ q=nrm(q); document.getElementById('incL').innerHTML=list.filter(p=>!q||nrm(p.name+' '+(p.apelido||'')).includes(q)).slice(0,60).map(p=>`<button class="btn ghost" data-inc="${p.id}" style="display:block;width:100%;text-align:left;margin-bottom:6px">${esc(p.name)}${p.apelido?' <span class="sub" style="margin:0">('+esc(p.apelido)+')</span>':''}</button>`).join('')||'<div class="sub">Ninguém com esse nome.</div>';
-    document.querySelectorAll('[data-inc]').forEach(b=>b.onclick=()=>{ closeSheet(); setTimeout(()=>openForm(b.dataset.inc,'add'),250); }); };
+    document.querySelectorAll('[data-inc]').forEach(b=>b.onclick=()=>{
+      const nome=document.getElementById('incNome').value.trim(), rel=document.getElementById('incRel').value;
+      if(nome.length<2){ document.getElementById('incErr').textContent='Escreva primeiro o nome da pessoa nova (passo 1).'; document.getElementById('incNome').focus(); return; }
+      closeSheet(); setTimeout(()=>{ openForm(b.dataset.inc,'add'); const n=document.getElementById('fName'), r=document.getElementById('fRel'); if(n) n.value=nome; if(r){ r.value=rel; r.dispatchEvent(new Event('change')); } const sv=document.getElementById('fSave'); if(sv) sv.scrollIntoView({block:'nearest'}); },250); }); };
   draw(''); document.getElementById('incQ').oninput=e=>draw(e.target.value);
 };
 document.getElementById('kinBtn').onclick=()=>openKin(null,null);
