@@ -34,7 +34,7 @@ header{position:sticky;top:0;z-index:20;background:var(--bg);border-bottom:1px s
 #askBtn,#kinBtn,#newsBtn,#dupBtn,#codeBtn{display:none!important}
 .hBtns:empty{display:none}
 .hb{height:38px;border:1px solid var(--ink);border-radius:10px;background:transparent;color:var(--ink);font:inherit;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 4px}
-@media (max-width:520px){.hBtns{grid-template-columns:1fr}.hb.big{min-height:54px}}
+@media (max-width:620px){.hBtns{grid-template-columns:repeat(3,1fr);gap:6px}.hb.big{min-height:0;height:40px;padding:0 4px;align-items:center;justify-content:center;text-align:center}.hb.big small{display:none}.hb.big b{font-size:13.5px;white-space:nowrap}}
 h1{font-family:Fraunces,serif;font-size:24px;margin:0;letter-spacing:-.3px}
 h1 span{color:var(--green)}
 .tag{font-size:11px;background:var(--amber-soft);color:var(--amber);padding:3px 8px;border-radius:8px;font-weight:600}
