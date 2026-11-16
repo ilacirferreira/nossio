@@ -131,6 +131,10 @@ a.pl{color:var(--green);font-weight:600;text-decoration:none;border-bottom:1px d
 <script>
 /* ---------- Nossio fora do Claude: dados no Google (Apps Script) ---------- */
 window.NOSSIO_GAS=true;
+// versão da tela: se o celular estiver com uma cópia antiga guardada, busca a nova e recarrega sozinho (uma vez)
+const APPVER='v20261116-2040';
+(async()=>{ try{ const t=await fetch(location.pathname+'?nv='+Date.now(),{cache:'no-store'}).then(r=>r.text()); const m=t.match(/APPVER='([^']+)'/);
+  if(m&&m[1]!==APPVER&&sessionStorage.getItem('nossio-rl')!==m[1]){ sessionStorage.setItem('nossio-rl',m[1]); location.replace(location.pathname+'?nv='+m[1]+location.hash); } }catch(e){} })();
 const CODEKEY='nossio-code'; let MEMCODE='';
 const LSget=k=>{try{return localStorage.getItem(k)}catch(e){return k===CODEKEY?MEMCODE:null}}, LSset=(k,v)=>{if(k===CODEKEY)MEMCODE=v; try{localStorage.setItem(k,v)}catch(e){}}, LSdel=k=>{if(k===CODEKEY)MEMCODE=''; try{localStorage.removeItem(k)}catch(e){}};
 const API='https://script.google.com/macros/s/AKfycbwcTs1peEwuO-V6V8xegz2Wod2MTj91sXOXKCrycDWgBuFiNZTsaJZWupC_0t2DZJVGtA/exec';
