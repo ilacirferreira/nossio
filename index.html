@@ -410,15 +410,22 @@ function layout(){
   const top=u=>{ let v=u; while(v.parent) v=v.parent; return v; };
   const placed=new Set(), F={n:[],c:{}};
   const inTree=(r)=>{ const s=[]; const st=[r]; while(st.length){const v=st.pop(); s.push(v); st.push(...v.kids);} return s; };
-  const blocks=[]; const addRoot=(r,side)=>{ const S=lay(r); if(F.n.length) shift(S,pack(F,S,side,ROOTGAP)); F.n.push(...S.n); merge(F.c,S.c,0); inTree(r).forEach(v=>placed.add(v)); blocks.push({r,S}); };
+  const blocks=[]; const addRoot=(r,side,anchor)=>{ const S=lay(r);
+    // família de quem casou: tenta pôr os pais logo acima do filho/filha (se houver espaço livre ali)
+    let done=false;
+    if(F.n.length&&anchor){ const a=F.n.find(o=>o.id===anchor), tops=S.n.filter(o=>r.m.some(m=>m.id===o.id));
+      if(a&&tops.length){ const cx=tops.reduce((t,o)=>t+o.x,0)/tops.length; const base=a.x-cx;
+        const free=dx=>S.n.every(o=>!F.n.some(q=>q.g===o.g&&Math.abs(q.x-(o.x+dx))<W));
+        for(const k of [0,-0.5,0.5,-1,1,-1.5,1.5,-2,2,-3,3]){ const dx=base+k*W; if(free(dx)){ shift(S,dx); done=true; break; } } } }
+    if(F.n.length&&!done) shift(S,pack(F,S,side,ROOTGAP)); F.n.push(...S.n); merge(F.c,S.c,0); inTree(r).forEach(v=>placed.add(v)); blocks.push({r,S}); };
   const first=top(unitOf[people[0].id]); addRoot(first,1);
   let guard=0;
   while(placed.size<units.length && guard++<500){
     // família ainda não desenhada que tem um casamento com quem já está na árvore
     let found=null;
-    for(const u of units){ if(!placed.has(u)||!u.foreign) continue; const r=top(unitOf[u.foreign.father]||unitOf[u.foreign.mother]); if(r&&!placed.has(r)){found={r,side:sideOf[u.id]||1};break;} }
+    for(const u of units){ if(!placed.has(u)||!u.foreign) continue; const r=top(unitOf[u.foreign.father]||unitOf[u.foreign.mother]); if(r&&!placed.has(r)){found={r,side:sideOf[u.id]||1,anchor:u.foreign.id};break;} }
     if(!found){ const r=roots.find(r=>!placed.has(r))||units.find(u=>!placed.has(u)); found={r:top(r),side:1}; }
-    addRoot(found.r,found.side);
+    addRoot(found.r,found.side,found.anchor);
   }
   // deslocamento escolhido pelo usuário (setas "mover a família"): cada toque anda a largura de um cartão
   blocks.forEach(({r,S})=>{ const dx=r.m.reduce((a,m)=>a+(m.dx||0),0); if(dx) S.n.forEach(o=>o.x+=dx*W); });
