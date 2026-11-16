@@ -1304,9 +1304,21 @@ function parseConta(txt){
   }
   return acts;
 }
+// sobrenomes da pessoa: os do próprio nome + os dos pais e do cônjuge (quem foi cadastrado só com o primeiro nome "herda" o da família)
+function famSurnames(p,depth){ const out=new Set(); if(!p) return out; nrm(p.name).split(' ').slice(1).forEach(w=>w&&out.add(w));
+  if((depth||0)<2) [p.father,p.mother,p.spouse].forEach(id=>{ const r=byId(id); if(r&&!r.unnamed) famSurnames(r,(depth||0)+1).forEach(w=>out.add(w)); }); return out; }
 function findByName(n){ const q=nrm(n); if(!q) return {none:true};
-  const all=people.filter(p=>!p.unnamed);
+  const all=people.filter(p=>!p.unnamed), toks=q.split(' '), first=toks[0], sur=toks.slice(1);
   let hit=all.filter(p=>nrm(p.name)===q); if(hit.length===1) return {p:hit[0],exact:q.includes(' ')};
+  if(sur.length){
+    // nome + sobrenome: mesmo primeiro nome (ou apelido) e sobrenomes presentes no nome ou na família da pessoa
+    const sc=all.map(p=>{ const pn=nrm(p.name).split(' '), ap=nrm(p.apelido); if(pn[0]!==first&&ap!==first&&ap!==q) return null;
+      const own=new Set(pn.slice(1)), fam=famSurnames(p); let s=0; for(const w of sur){ if(own.has(w)) s+=2; else if(fam.has(w)) s+=1; else s-=2; } return {p,s}; }).filter(x=>x&&x.s>0).sort((a,b)=>b.s-a.s);
+    if(sc.length===1||(sc.length>1&&sc[0].s>sc[1].s)) return {p:sc[0].p,exact:true};
+    if(sc.length>1) return {amb:sc.map(x=>x.p)};
+    return {none:true}; // tem sobrenome e ninguém da árvore combina: é outra pessoa
+  }
+  const apHit=all.filter(p=>nrm(p.apelido)===q); if(apHit.length===1&&!all.some(p=>p!==apHit[0]&&nrm(p.name).split(' ')[0]===q)) return {p:apHit[0],exact:true};
   hit=all.filter(p=>nrm(p.name).split(' ')[0]===q||nrm(p.apelido)===q); if(hit.length===1) return {p:hit[0]}; if(hit.length>1) return {amb:hit};
   hit=all.filter(p=>nrm(p.name).startsWith(q+' ')||nrm(p.name).includes(' '+q)); if(hit.length===1) return {p:hit[0]}; if(hit.length>1) return {amb:hit};
   return {none:true};
