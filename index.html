@@ -176,7 +176,7 @@ function fmtName(n){
 // primeiro nome; nomes compostos comuns (Maria Augusta, José Carlos, Ana Paula…) ficam inteiros
 const COMPOSTOS=new Set(['maria','ana','anna','jose','joao','luiz','luis','antonio','carlos','pedro','paulo','marco','marcos','rosa','vera','lucia','luciana','joana','francisco','manoel','manuel','sebastiao','geraldo','jose','paula','julio','victor','vitor','joaquim','miguel','rafael','gabriel','davi','luciano','marcio','mario','rita','tereza','teresa','helena','clara','cecilia','beatriz','izabel','isabel','eduardo','fernando','jorge','sergio']);
 // menor de idade: tem data de nascimento, está vivo e ainda não fez 18 anos
-function isMinor(p){ if(!p||!p.birth||p.deceased) return false; const b=new Date(p.birth+'T12:00:00'), t=new Date(); let a=t.getFullYear()-b.getFullYear(); if(t.getMonth()<b.getMonth()||(t.getMonth()===b.getMonth()&&t.getDate()<b.getDate())) a--; return a<18; }
+function isMinor(p){ if(!p||p.deceased) return false; if(p.minor&&!p.birth) return true; if(!p.birth) return false; const b=new Date(p.birth+'T12:00:00'), t=new Date(); let a=t.getFullYear()-b.getFullYear(); if(t.getMonth()<b.getMonth()||(t.getMonth()===b.getMonth()&&t.getDate()<b.getDate())) a--; return a<18; }
 const first = p => {
   const w=(p?.name||'').trim().split(/\s+/);
   if(w.length>=3 && COMPOSTOS.has(norm(w[0])) && !PART.has(norm(w[1]))) return w[0]+' '+w[1];
@@ -982,6 +982,7 @@ function openForm(baseId,kind){
     <datalist id="dlNames">${names}</datalist>
     <div class="field"><label>Outros parentes ${kind==='root'?'seus':'de '+esc(kind==='edit'?call(p):'quem está sendo cadastrado')} (ao preencher um, abre outro)</label><div id="relBox">${relRowHTML()}</div></div>
     <div class="field"><label>Data de nascimento</label><input id="fBirth" type="date" value="${esc(p.birth)}"></div>
+    <label class="check"><input type="checkbox" id="fMinor" ${p.minor?'checked':''}> Menor de idade (se não souber a data de nascimento)</label>
     <label class="check"><input type="checkbox" id="fDead" ${p.deceased?'checked':''}> Falecido(a)</label>
     ${kind==='edit'&&p.spouse&&byId(p.spouse)?`<label class="check"><input type="checkbox" id="fSep" ${p.separated?'checked':''}> Separado(a) de ${esc(call(byId(p.spouse)))}</label>`:''}
     <div class="field" id="fDeathBox" ${p.deceased?'':'hidden'}><label>Data de falecimento (se souber)</label><input id="fDeath" type="date" value="${esc(p.death||'')}"></div>
@@ -1158,7 +1159,7 @@ async function saveForm(baseId,kind,dec){
   const linkLabel = rel==='other' ? v('fLink').trim().toLocaleLowerCase('pt-BR') : '';
   if(rel==='other' && !linkLabel){toast('Diga qual é o vínculo');return}
   if(rel==='other' && isBlockedLink(linkLabel)){toast(NOT_ALLOWED_TXT);return}
-  const fields={name,unnamed,provisional:!!document.getElementById('fProv')?.checked,apelido:fmtName(v('fNick')),sex:v('fSex'),birth:v('fBirth'),deceased:document.getElementById('fDead').checked};
+  const fields={name,unnamed,provisional:!!document.getElementById('fProv')?.checked,apelido:fmtName(v('fNick')),sex:v('fSex'),birth:v('fBirth'),deceased:document.getElementById('fDead').checked,minor:!!document.getElementById('fMinor')?.checked};
   fields.death=fields.deceased?v('fDeath'):'';
   const fatherName=fmtName(v('fFather')), motherName=fmtName(v('fMother'));
   if(fatherName&&norm(fatherName)===norm(motherName)){toast('Pai e mãe estão com o mesmo nome');return}
@@ -1299,6 +1300,7 @@ function parseConta(txt){
     else if(m=s.match(/^(.+?)\s+(?:(?:é|e|eh)\s+)?(?:casad[oa]|(?:se\s+)?casou|(?:a\s+|o\s+)?(?:esposa|mulher|marido))\s+(?:com|de|d[oa])\s+(.+)$/i)) acts.push({t:'sp',a:m[1],b:m[2],sex:sexW(s.slice(m[1].length))});
     else if(m=s.match(/^(.+?)\s+e\s+(.+?)\s+(?:são casados|sao casados|casaram|se casaram)/i)) acts.push({t:'sp',a:m[1],b:m[2],sex:''});
     else if(m=s.match(/^(.+?)\s+e\s+(.+?)\s+(?:se\s+)?separaram/i)||s.match(/^(.+?)\s+(?:(?:é|e)\s+)?separad[oa]\s+d[eoa]?\s+(.+)$/i)) acts.push({t:'sepa',a:m[1],b:m[2]});
+    else if(m=s.match(/^(.+?)\s+(?:é|e|eh)\s+menor(?:\s+de\s+idade)?$/i)) acts.push({t:'minor',a:m[1]});
     else if(m=s.match(/^(.+?)\s+(?:já\s+|ja\s+)?(?:faleceu|morreu|(?:é|e)\s+falecid[oa]|falecid[oa])/i)) acts.push({t:'dead',a:m[1]});
     else acts.push({t:'?',s});
   }
@@ -1346,6 +1348,7 @@ function openTell(prefill){
       else if(a.t==='sp'){ const A=who(a.a,a.sex), B=who(a.b,a.sex==='F'?'M':a.sex==='M'?'F':''); plan.push({t:'sp',A,B,sep:!!a.sep}); lines.push(a.sep?`${A.label} ⚡ ${B.label} → foram casados (separados)`:`${A.label} ❤ ${B.label} → casados`); }
       else if(a.t==='sepa'){ const A=who(a.a), B=who(a.b); plan.push({t:'sepa',A,B}); lines.push(`${A.label} ⚡ ${B.label} → separados`); }
       else if(a.t==='dead'){ const A=who(a.a); plan.push({t:'dead',A}); lines.push(`${A.label} → falecido(a) †`); }
+      else if(a.t==='minor'){ const A=who(a.a); plan.push({t:'minor',A}); lines.push(`${A.label} → menor de idade`); }
       else lines.push(`<span style="color:var(--red)">Não entendi: "${esc(a.s)}"</span>`);
     }
     // regra: só entra quem tem um conhecido já na árvore (cada grupo de pessoas novas precisa tocar alguém existente)
@@ -1371,6 +1374,7 @@ function openTell(prefill){
         else if(a.t==='sp'){ const A=P(a.A), B=P(a.B); if((A.spouse&&A.spouse!==B.id)||(B.spouse&&B.spouse!==A.id)) warns.push(`${call(A)} ou ${call(B)} já tem outro cônjuge — não liguei.`); else { A.spouse=B.id; B.spouse=A.id; A.separated=B.separated=!!a.sep; touched.add(A); touched.add(B); } last=A; }
         else if(a.t==='sepa'){ const A=P(a.A), B=P(a.B); if(A.spouse===B.id){ A.separated=B.separated=true; touched.add(A); touched.add(B); } else warns.push(`${call(A)} e ${call(B)} não estão como casados — não marquei separação.`); last=A; }
         else if(a.t==='dead'){ const A=P(a.A); A.deceased=true; touched.add(A); last=A; }
+        else if(a.t==='minor'){ const A=P(a.A); A.minor=true; touched.add(A); last=A; }
       }
       try{ for(const t of touched){ t.parents=[t.father,t.mother].filter(Boolean); await savePerson(t); }
         for(const id of dropIds){ if(!isOwner) continue; people=people.filter(x=>x.id!==id); try{await col.doc(id).delete()}catch(e){} }
