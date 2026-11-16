@@ -1217,16 +1217,27 @@ document.getElementById('incBtn').onclick=document.getElementById('fab').onclick
   const list=people.filter(p=>!p.unnamed).sort((a,b)=>a.name.localeCompare(b.name,'pt-BR'));
   openSheet(`<h2>Incluir pessoa</h2>
   <label class="lbl">1. Nome da pessoa nova</label><input id="incNome" class="inp cad" placeholder="Ex.: Carol Ferreira" autocomplete="off">
+  <label class="lbl">Sexo</label><select id="incSexo" class="inp cad"><option value="">— não sei —</option><option value="F">Feminino</option><option value="M">Masculino</option></select>
   <label class="lbl">2. Ela é…</label><select id="incRel" class="inp cad"><option value="child">filho(a) de</option><option value="sibling">irmão(ã) de</option><option value="spouse">marido / esposa de</option></select>
-  <label class="lbl">3. …de quem? Toque no nome</label><input id="incQ" class="inp cad" placeholder="Procurar na árvore…" autocomplete="off">
-  <div id="incL" style="margin-top:8px;max-height:40vh;overflow:auto"></div>
-  <div id="incErr" style="color:var(--red);font-size:14px;min-height:18px"></div>`);
-  const draw=q=>{ q=nrm(q); document.getElementById('incL').innerHTML=list.filter(p=>!q||nrm(p.name+' '+(p.apelido||'')).includes(q)).slice(0,60).map(p=>`<button class="btn ghost" data-inc="${p.id}" style="display:block;width:100%;text-align:left;margin-bottom:6px">${esc(p.name)}${p.apelido?' <span class="sub" style="margin:0">('+esc(p.apelido)+')</span>':''}</button>`).join('')||'<div class="sub">Ninguém com esse nome.</div>';
-    document.querySelectorAll('[data-inc]').forEach(b=>b.onclick=()=>{
-      const nome=document.getElementById('incNome').value.trim(), rel=document.getElementById('incRel').value;
-      if(nome.length<2){ document.getElementById('incErr').textContent='Escreva primeiro o nome da pessoa nova (passo 1).'; document.getElementById('incNome').focus(); return; }
-      closeSheet(); setTimeout(()=>{ openForm(b.dataset.inc,'add'); const n=document.getElementById('fName'), r=document.getElementById('fRel'); if(n) n.value=nome; if(r){ r.value=rel; r.dispatchEvent(new Event('change')); } const sv=document.getElementById('fSave'); if(sv) sv.scrollIntoView({block:'nearest'}); },250); }); };
+  <label class="lbl">3. …de quem? Digite e toque no nome</label><input id="incQ" class="inp cad" placeholder="Procurar na árvore…" autocomplete="off">
+  <div id="incSel" class="sub" style="margin:6px 0;font-weight:600;color:var(--ink)"></div>
+  <div id="incL" style="margin-top:4px;max-height:30vh;overflow:auto"></div>
+  <div id="incErr" style="color:var(--red);font-size:14px;min-height:18px"></div>
+  <button class="btn green" id="incSave" style="width:100%;font-size:17px;padding:14px">Salvar</button>`);
+  let selId=null;
+  const draw=q=>{ q=nrm(q); document.getElementById('incL').innerHTML=list.filter(p=>!q||nrm(p.name+' '+(p.apelido||'')).includes(q)).slice(0,60).map(p=>`<button class="btn ghost" data-inc="${p.id}" style="display:block;width:100%;text-align:left;margin-bottom:6px;${p.id===selId?'background:#e3f1e8;border-color:var(--green,#2e6b4f)':''}">${p.id===selId?'✔ ':''}${esc(p.name)}${p.apelido?' <span class="sub" style="margin:0">('+esc(p.apelido)+')</span>':''}</button>`).join('')||'<div class="sub">Ninguém com esse nome.</div>';
+    document.querySelectorAll('[data-inc]').forEach(b=>b.onclick=()=>{ selId=b.dataset.inc; document.getElementById('incSel').textContent='Escolhido: '+byId(selId).name; draw(document.getElementById('incQ').value); }); };
   draw(''); document.getElementById('incQ').oninput=e=>draw(e.target.value);
+  document.getElementById('incSave').onclick=()=>{
+    const nome=document.getElementById('incNome').value.trim(), rel=document.getElementById('incRel').value, sexo=document.getElementById('incSexo').value, err=t=>document.getElementById('incErr').textContent=t;
+    if(nome.length<2) return err('Escreva o nome da pessoa nova (passo 1).');
+    if(!selId) return err('Escolha de quem ela é parente (passo 3): digite o nome e toque nele.');
+    const base=byId(selId); if(rel==='spouse'&&base.spouse) return err(call(base)+' já tem cônjuge cadastrado.');
+    closeSheet(); openForm(selId,'add');
+    const n=document.getElementById('fName'), r=document.getElementById('fRel'), sx=document.getElementById('fSex');
+    if(n) n.value=nome; if(r){ r.value=rel; r.dispatchEvent(new Event('change')); } if(sx&&sexo){ sx.value=sexo; sx.dispatchEvent(new Event('change')); }
+    const sv=document.getElementById('fSave'); if(sv){ sv.click(); }
+  };
 };
 document.getElementById('kinBtn').onclick=()=>openKin(null,null);
 document.getElementById('dupBtn').onclick=openDups;
