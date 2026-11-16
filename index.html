@@ -278,7 +278,7 @@ async function init(){
     if(!snap.metadata.fromCache){clearTimeout(timer); if(!fixedNames){fixedNames=true; setTimeout(fixOldNames,0)}}
     people = snap.docs.map(d=>Object.assign({id:d.id},JSON.parse(JSON.stringify(d.data()))));
     people.sort((a,b)=>(a.createdAt||0)-(b.createdAt||0)); normalize();
-    setStatus(canWrite ? `${people.length} pessoa${people.length===1?'':'s'} na árvore` : 'Somente leitura');
+    setStatus(`${people.length} pessoa${people.length===1?'':'s'} na árvore`+(canWrite?'':' · toque em ➕ Incluir pessoa para participar'));
     render();
   }, err=>{clearTimeout(timer); setStatus('Não foi possível carregar a árvore agora.')});
 }
