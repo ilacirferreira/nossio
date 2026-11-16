@@ -426,7 +426,7 @@ function lifeLine(p){const b=year(p.birth),d=year(p.death);if(p.deceased)return 
 function render(){
   if(typeof viewMode!=='undefined' && viewMode==='plan'){ Planets.refresh(); return; }
   const tree=document.getElementById('tree'), empty=document.getElementById('emptyBox'), fab=document.getElementById('fab');
-  fab.hidden = true; document.getElementById('incBtn').hidden = !((canWrite||window.NOSSIO_GAS) && people.length); document.getElementById('dupBtn').hidden = !(isOwner && canWrite && people.length>=2); updNewsBtn(); document.getElementById('kinBtn').hidden = people.length<2; document.getElementById('findBtn').hidden = people.length<2; document.getElementById('askBtn').hidden = !(askReady && people.length>=2); document.getElementById('tellBtn').hidden = !(askReady && canWrite && people.length>=1);
+  fab.hidden = true; document.getElementById('incBtn').hidden = !((canWrite||window.NOSSIO_GAS) && people.length); document.getElementById('dupBtn').hidden = !(isOwner && canWrite && people.length>=2); updNewsBtn(); document.getElementById('kinBtn').hidden = people.length<2; document.getElementById('findBtn').hidden = people.length<2; document.getElementById('askBtn').hidden = !(askReady && people.length>=2); document.getElementById('tellBtn').hidden = !((askReady||window.NOSSIO_GAS) && people.length>=1);
   if(!people.length){
     tree.innerHTML=''; tree.style.width=tree.style.height='0'; treeW=treeH=0; applyScale(); document.getElementById('zoomCtl').hidden=true;
     empty.innerHTML = canWrite ? `<div class="empty"><h2>Vamos começar por você</h2><p>Cadastre-se primeiro. Depois toque em qualquer pessoa da árvore para incluir pais, filhos, irmãos e cônjuge.</p><button class="btn green" id="startBtn">Cadastrar-me</button></div>` : `<div class="empty"><p>A árvore ainda está vazia.</p></div>`;
@@ -1252,7 +1252,7 @@ document.getElementById('incBtn').onclick=document.getElementById('fab').onclick
     }
     try{ for(const t of touched){ t.parents=[t.father,t.mother].filter(Boolean); await savePerson(t); }
       for(const id of dropIds){ if(!isOwner) continue; people=people.filter(x=>x.id!==id); try{await col.doc(id).delete()}catch(e){} }
-      closeSheet(); render(); toast(warns.length?warns[0]:`${call(np)} incluído(a)`);
+      closeSheet(); render(); toast(warns.length?warns[0]:`${call(np)} incluído(a)`); setTimeout(()=>centerOn(np.id),350);
     }catch(e){ btn.disabled=false; btn.textContent='Salvar'; err('Não foi possível salvar agora. Tente de novo.'); }
   };
 };
@@ -1260,18 +1260,76 @@ document.getElementById('kinBtn').onclick=()=>openKin(null,null);
 document.getElementById('dupBtn').onclick=openDups;
 document.getElementById('newsBtn').onclick=openNews;
 document.getElementById('askBtn').onclick=()=>openAsk('ask');
-document.getElementById('tellBtn').onclick=()=>window.NOSSIO_GAS?openTell():openAsk('tell');
+document.getElementById('tellBtn').onclick=()=>(window.NOSSIO_GAS&&!askReady)?openTell():openAsk('tell');
+/* ---------- Contar: escreva em frases simples e o app monta as ligações ---------- */
+function parseConta(txt){
+  const acts=[], L=x=>String(x).split(/\s*,\s*|\s+e\s+/i).map(y=>y.replace(/^(o|a|os|as)\s+/i,'').trim()).filter(y=>y.length>1);
+  const sents=String(txt).replace(/\s+/g,' ').split(/[.;!\n]+/).map(x=>x.trim()).filter(Boolean);
+  for(let s of sents){ s=s.replace(/^(e|que)\s+/i,''); let m;
+    const sexW=w=>/filha|irmã|irma|mãe|mae|esposa|mulher|casada|separada|falecida/i.test(w)?'F':/filho|irmão|irmao|pai|marido|casado|separado|falecido/i.test(w)?'M':'';
+    if(m=s.match(/^(.+?)\s+(?:é|e|eh)\s+(?:o\s+|a\s+)?(pai|m[ãa]e)\s+d[eoa]s?\s+(.+)$/i)) acts.push({t:'par',par:m[1],sex:/pai/i.test(m[2])?'M':'F',kids:L(m[3])});
+    else if(m=s.match(/^(.+?)\s+(?:(?:é|e|eh|são|sao)\s+)?(?:o\s+|a\s+|os\s+|as\s+)?(filh[oa]s?)\s+d[eoa]s?\s+(.+)$/i)) acts.push({t:'kid',kids:L(m[1]),sex:sexW(m[2]),pars:L(m[3])});
+    else if(m=s.match(/^(.+?)\s+(?:tem|teve|tiveram)\s+(?:os\s+|as\s+)?(?:filh[oa]s?:?\s+)(.+)$/i)) acts.push({t:'kid',kids:L(m[2]),sex:'',pars:L(m[1])});
+    else if(m=s.match(/^(.+?)\s+e\s+(.+?)\s+(?:são|sao)\s+(?:os\s+)?pais\s+d[eoa]s?\s+(.+)$/i)) acts.push({t:'kid',kids:L(m[3]),sex:'',pars:[m[1],m[2]]});
+    else if(m=s.match(/^(.+?)\s+(?:é|e|eh)\s+(?:o\s+|a\s+)?(irm[ãa]o?s?|irma)\s+d[eoa]s?\s+(.+)$/i)) acts.push({t:'sib',a:L(m[1]),sex:sexW(m[2]),b:L(m[3])[0]});
+    else if(m=s.match(/^(.+?)\s+(?:são|sao)\s+irm[ãa]os?$/i)){ const xs=L(m[1]); acts.push({t:'sib',a:xs.slice(1),sex:'',b:xs[0]}); }
+    else if(m=s.match(/^(.+?)\s+(?:(?:é|e|eh)\s+)?(?:casad[oa]|(?:se\s+)?casou|(?:a\s+|o\s+)?(?:esposa|mulher|marido))\s+(?:com|de|d[oa])\s+(.+)$/i)) acts.push({t:'sp',a:m[1],b:m[2],sex:sexW(s.slice(m[1].length))});
+    else if(m=s.match(/^(.+?)\s+e\s+(.+?)\s+(?:são casados|sao casados|casaram|se casaram)/i)) acts.push({t:'sp',a:m[1],b:m[2],sex:''});
+    else if(m=s.match(/^(.+?)\s+e\s+(.+?)\s+(?:se\s+)?separaram/i)||s.match(/^(.+?)\s+(?:(?:é|e)\s+)?separad[oa]\s+d[eoa]?\s+(.+)$/i)) acts.push({t:'sepa',a:m[1],b:m[2]});
+    else if(m=s.match(/^(.+?)\s+(?:já\s+|ja\s+)?(?:faleceu|morreu|(?:é|e)\s+falecid[oa]|falecid[oa])/i)) acts.push({t:'dead',a:m[1]});
+    else acts.push({t:'?',s});
+  }
+  return acts;
+}
+function findByName(n){ const q=nrm(n); if(!q) return {none:true};
+  const all=people.filter(p=>!p.unnamed);
+  let hit=all.filter(p=>nrm(p.name)===q); if(hit.length===1) return {p:hit[0]};
+  hit=all.filter(p=>nrm(p.name).split(' ')[0]===q||nrm(p.apelido)===q); if(hit.length===1) return {p:hit[0]}; if(hit.length>1) return {amb:hit};
+  hit=all.filter(p=>nrm(p.name).startsWith(q+' ')||nrm(p.name).includes(' '+q)); if(hit.length===1) return {p:hit[0]}; if(hit.length>1) return {amb:hit};
+  return {none:true};
+}
 function openTell(){
-  const list=people.filter(p=>!p.unnamed).sort((a,b)=>a.name.localeCompare(b.name,'pt-BR'));
-  openSheet(`<h2>Contar sobre alguém</h2><div class="sub">Escreva algo que você sabe, como "mudou para Pirapora" ou "casou com Fulana". Fica registrado com o seu nome, e a responsabilidade é de quem contou.</div>
-  <label class="lbl">Sobre quem?</label><select id="tWho" class="inp cad"><option value="">— escolha a pessoa —</option>${list.map(p=>`<option value="${p.id}">${esc(p.name)}${p.apelido?' ('+esc(p.apelido)+')':''}</option>`).join('')}</select>
-  <label class="lbl">O que você sabe?</label><textarea id="tTxt" class="inp cad" rows="4" maxlength="300" style="resize:vertical"></textarea>
-  <div id="tErr" style="color:var(--red);font-size:14px;min-height:18px;margin-top:6px"></div>
-  <button class="btn green" id="tGo" style="width:100%">Registrar</button>`);
-  document.getElementById('tGo').onclick=async()=>{ const p=byId(document.getElementById('tWho').value), t=document.getElementById('tTxt').value.trim(), err=m=>document.getElementById('tErr').textContent=m;
-    if(!p) return err('Escolha a pessoa.'); if(t.length<3) return err('Escreva o que você sabe.');
-    p.notes=[...(p.notes||[]),{t:t.slice(0,300),at:new Date().toISOString().slice(0,10),by:myName()}];
-    try{ await savePerson(p); closeSheet(); toast('Registrado — obrigado!'); render(); }catch(e){ err('Não foi possível salvar agora.'); } };
+  if(!canWrite){ if(window.NOSSIO_GAS){ if(wantWrite&&!myCad) return openCad(); return openCode(); } return; }
+  openSheet(`<h2>✍️ Contar</h2><div class="sub">Escreva em frases simples, uma por linha ou separadas por ponto. Exemplos:<br>
+  • <i>Carol é filha de Jacy e Márcia</i><br>• <i>Diego é casado com Florence</i><br>• <i>Diego e Florence são pais de Leo e Iza</i><br>• <i>Leo é irmão de Iza</i><br>• <i>Liziane faleceu</i><br>Quem ainda não estiver na árvore é criado na hora.</div>
+  <textarea id="tTxt" class="inp cad" rows="4" style="resize:vertical" placeholder="O que você sabe…"></textarea>
+  <button class="btn green" id="tPrev" style="width:100%;margin-top:8px">Ver o que vai mudar</button>
+  <div id="tOut" style="margin-top:10px"></div>`);
+  document.getElementById('tPrev').onclick=()=>{
+    const acts=parseConta(document.getElementById('tTxt').value), plan=[], novos={}, lines=[];
+    const who=(n,sex)=>{ const k=nrm(n); if(novos[k]) return novos[k]; const r=findByName(n);
+      if(r.p) return {p:r.p,label:esc(r.p.name)}; if(r.amb) return {amb:r.amb,label:esc(fmtName(n))};
+      return novos[k]={novo:fmtName(n),sex:sex||'',label:`<b>${esc(fmtName(n))}</b> <span class="sub" style="margin:0">(nova)</span>`}; };
+    for(const a of acts){
+      if(a.t==='kid'){ const ps=a.pars.map(x=>who(x)), ks=a.kids.map(x=>who(x,a.sex)); plan.push({...a,ps,ks}); lines.push(`${ks.map(k=>k.label).join(', ')} → ${a.sex==='F'?'filha':a.sex==='M'?'filho':'filho(a)'}${ks.length>1?'s':''} de ${ps.map(k=>k.label).join(' e ')}`); }
+      else if(a.t==='par'){ const P=who(a.par,a.sex), ks=a.kids.map(x=>who(x)); plan.push({t:'kid',ps:[P],ks}); lines.push(`${P.label} → ${a.sex==='M'?'pai':'mãe'} de ${ks.map(k=>k.label).join(', ')}`); }
+      else if(a.t==='sib'){ const B=who(a.b), As=a.a.map(x=>who(x,a.sex)); plan.push({t:'sib',As,B}); lines.push(`${As.map(k=>k.label).join(', ')} → irmão(ã) de ${B.label}`); }
+      else if(a.t==='sp'){ const A=who(a.a,a.sex), B=who(a.b,a.sex==='F'?'M':a.sex==='M'?'F':''); plan.push({t:'sp',A,B}); lines.push(`${A.label} ❤ ${B.label} → casados`); }
+      else if(a.t==='sepa'){ const A=who(a.a), B=who(a.b); plan.push({t:'sepa',A,B}); lines.push(`${A.label} ⚡ ${B.label} → separados`); }
+      else if(a.t==='dead'){ const A=who(a.a); plan.push({t:'dead',A}); lines.push(`${A.label} → falecido(a) †`); }
+      else lines.push(`<span style="color:var(--red)">Não entendi: "${esc(a.s)}"</span>`);
+    }
+    const amb=plan.some(x=>[x.A,x.B,x.P,...(x.ps||[]),...(x.ks||[]),...(x.As||[])].some(y=>y&&y.amb));
+    document.getElementById('tOut').innerHTML=`<div class="missing">${lines.map(l=>'• '+l).join('<br>')||'Escreva algo acima.'}</div>`+
+      (amb?'<div class="sub" style="color:var(--red)">Há mais de uma pessoa com algum desses nomes — escreva o nome completo.</div>':'')+
+      (plan.length&&!amb?`<button class="btn green" id="tGo" style="width:100%;margin-top:8px">Confirmar e salvar</button>`:'');
+    const go=document.getElementById('tGo'); if(!go) return;
+    go.onclick=async()=>{ go.disabled=true; go.textContent='Salvando…'; warns=[]; dropIds=new Set(); const touched=new Set(); let last=null;
+      const mkP=(name,sex)=>{ const np={id:newId(),name,sex:sex||'',father:null,mother:null,parents:[],spouse:null,photo:null,createdAt:Date.now(),birth:'',deceased:false,death:'',apelido:'',provisional:true}; if(myId){np.createdBy=myId;np.createdByName=myName();} people.push(np); touched.add(np); return np; };
+      const P=x=>{ if(x.p) return x.p; if(!x.obj) x.obj=mkP(x.novo,x.sex); return x.obj; };
+      for(const a of plan){
+        if(a.t==='kid'){ const ps=a.ps.map(P); for(const k of a.ks){ const K=P(k); for(const par of ps) makeParent(par,K,touched); last=K; } if(ps.length===2&&!ps[0].spouse&&!ps[1].spouse){ ps[0].spouse=ps[1].id; ps[1].spouse=ps[0].id; touched.add(ps[0]); touched.add(ps[1]); } }
+        else if(a.t==='sib'){ const B=P(a.B); for(const x of a.As){ const A=P(x); makeSiblings(A,B,touched); last=A; } }
+        else if(a.t==='sp'){ const A=P(a.A), B=P(a.B); if((A.spouse&&A.spouse!==B.id)||(B.spouse&&B.spouse!==A.id)) warns.push(`${call(A)} ou ${call(B)} já tem outro cônjuge — não liguei.`); else { A.spouse=B.id; B.spouse=A.id; A.separated=B.separated=false; touched.add(A); touched.add(B); } last=A; }
+        else if(a.t==='sepa'){ const A=P(a.A), B=P(a.B); if(A.spouse===B.id){ A.separated=B.separated=true; touched.add(A); touched.add(B); } else warns.push(`${call(A)} e ${call(B)} não estão como casados — não marquei separação.`); last=A; }
+        else if(a.t==='dead'){ const A=P(a.A); A.deceased=true; touched.add(A); last=A; }
+      }
+      try{ for(const t of touched){ t.parents=[t.father,t.mother].filter(Boolean); await savePerson(t); }
+        for(const id of dropIds){ if(!isOwner) continue; people=people.filter(x=>x.id!==id); try{await col.doc(id).delete()}catch(e){} }
+        closeSheet(); render(); toast(warns[0]||'Pronto — árvore atualizada'); if(last) setTimeout(()=>centerOn(last.id),350);
+      }catch(e){ go.disabled=false; go.textContent='Confirmar e salvar'; toast('Não foi possível salvar agora'); }
+    };
+  };
 }
 document.getElementById('findBtn').onclick=openFind;
 // Contar/Perguntar com IA no Nossio da web: o servidor (Apps Script) chama o Claude com a chave do Ilacir
