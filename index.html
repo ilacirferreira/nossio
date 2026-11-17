@@ -134,7 +134,7 @@ a.pl{color:var(--green);font-weight:600;text-decoration:none;border-bottom:1px d
 /* ---------- Nossio fora do Claude: dados no Google (Apps Script) ---------- */
 window.NOSSIO_GAS=true;
 // versão da tela: se o celular estiver com uma cópia antiga guardada, busca a nova e recarrega sozinho (uma vez)
-const APPVER='v20261116-2050';
+const APPVER='v20261117-0420';
 (async()=>{ try{ const t=await fetch(location.pathname+'?nv='+Date.now(),{cache:'no-store'}).then(r=>r.text()); const m=t.match(/APPVER='([^']+)'/);
   if(m&&m[1]!==APPVER&&sessionStorage.getItem('nossio-rl')!==m[1]){ sessionStorage.setItem('nossio-rl',m[1]); location.replace(location.pathname+'?nv='+m[1]+location.hash); } }catch(e){} })();
 const CODEKEY='nossio-code'; let MEMCODE='';
@@ -157,6 +157,8 @@ window.claude={use:async n=>n==='db'?GDB:n==='user'?GUSER:null};
 window.__locReady=(async()=>{ try{ const q=new URLSearchParams(location.search); const c=String(q.get('convite')||q.get('c')||'').trim().toUpperCase(); if(c){ LSset(CODEKEY,c); history.replaceState(null,'',location.pathname); } }catch(e){}
   // link único: quem não tem código ganha um código próprio deste aparelho
   if(!LSget(CODEKEY)){ const A='ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let k='DEV-'; const r=new Uint32Array(16); try{crypto.getRandomValues(r)}catch(e){for(let i=0;i<16;i++)r[i]=Math.random()*1e9} for(let i=0;i<16;i++) k+=A[r[i]%A.length]; LSset(CODEKEY,k); } })();
+// Nossio em pausa: quem não é o dono vê só um aviso
+(async()=>{ try{ await window.__locReady; const m=await gas('me'); if(m&&m.pausa){ document.body.innerHTML='<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:28px;text-align:center;font-family:Inter,system-ui,sans-serif;background:#f5efe3;color:#2a2a2a"><div><div style="font-family:Fraunces,Georgia,serif;font-size:42px;font-weight:700">Nossi<span style=color:#2e6b4f>o</span></div><p style="font-size:17px;margin-top:14px;line-height:1.5">O Nossio está em pausa.<br>Obrigado por ter participado!</p></div></div>'; } }catch(e){} })();
 </script>
 <script>
 /* ---------- estado ---------- */
