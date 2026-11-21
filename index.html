@@ -45,7 +45,7 @@ h1 span{color:var(--green)}
 .zoomCtl button{border:0;background:none;font:inherit;font-size:18px;width:40px;height:40px;border-radius:20px;cursor:pointer;color:var(--ink)}
 .zoomCtl #zPct{font-size:12px;width:48px;color:var(--muted)}
 .tree svg{position:absolute;left:0;top:0;pointer-events:none}
-.node{position:absolute;width:112px;height:140px;box-sizing:border-box;overflow:hidden;display:flex;flex-direction:column;align-items:center;background:var(--paper);border:1.5px solid var(--line);border-radius:var(--radius);padding:8px 6px;text-align:center;cursor:pointer}
+.node{position:absolute;width:140px;height:176px;box-sizing:border-box;overflow:hidden;display:flex;flex-direction:column;align-items:center;background:var(--paper);border:1.5px solid var(--line);border-radius:var(--radius);padding:8px 6px;text-align:center;cursor:pointer}
 .node .chip{margin-top:auto}
 .node:active{transform:scale(.97)}
 .node.root{border-color:var(--green);box-shadow:0 0 0 3px var(--green-soft)}
@@ -69,10 +69,10 @@ h1 span{color:var(--green)}
 .node.prov .nm{font-style:italic;color:#6b5a3a}
 .chip{display:inline-block;font-size:10px;padding:2px 6px;border-radius:8px;margin-top:4px;background:var(--amber-soft);color:var(--amber);font-weight:600}
 .missing{background:var(--amber-soft);color:#7a5414;border-radius:10px;padding:10px 12px;font-size:13px;line-height:1.5;margin:8px 0}
-.av{width:52px;height:52px;border-radius:50%;margin:0 auto 6px;background:#eae2d2;display:flex;align-items:center;justify-content:center;font-family:Fraunces,serif;font-size:20px;color:var(--muted);overflow:hidden}
+.av{width:64px;height:64px;border-radius:50%;margin:0 auto 8px;background:#eae2d2;display:flex;align-items:center;justify-content:center;font-family:Fraunces,serif;font-size:25px;color:var(--muted);overflow:hidden}
 .av img{width:100%;height:100%;object-fit:cover}
-.nm{font-size:13px;font-weight:600;line-height:1.2;word-break:break-word;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;max-height:2.4em}
-.dt{font-size:11px;color:var(--muted);margin-top:2px;min-height:13px}
+.nm{font-size:16px;font-weight:600;line-height:1.2;word-break:break-word;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;max-height:2.4em}
+.dt{font-size:13px;color:var(--muted);margin-top:3px;min-height:15px}
 .empty{max-width:420px;margin:30px auto;padding:0 20px;text-align:center}
 .empty h2{font-family:Fraunces,serif;font-size:22px}
 .empty p{color:#4a463e;font-size:15px;line-height:1.5}
@@ -139,7 +139,7 @@ body.gated .sheet{max-height:100vh;height:100vh;border-radius:0}
 /* ---------- Nossio fora do Claude: dados no Google (Apps Script) ---------- */
 window.NOSSIO_GAS=true;
 // versão da tela: se o celular estiver com uma cópia antiga guardada, busca a nova e recarrega sozinho (uma vez)
-const APPVER='v20261121-1245';
+const APPVER='v20261121-1300';
 (async()=>{ try{ const t=await fetch(location.pathname+'?nv='+Date.now(),{cache:'no-store'}).then(r=>r.text()); const m=t.match(/APPVER='([^']+)'/);
   if(m&&m[1]!==APPVER&&sessionStorage.getItem('nossio-rl')!==m[1]){ sessionStorage.setItem('nossio-rl',m[1]); location.replace(location.pathname+'?nv='+m[1]+location.hash); } }catch(e){} })();
 const CODEKEY='nossio-code'; let MEMCODE='';
@@ -342,7 +342,7 @@ function layout(){
   people.forEach(p=>{ if(gen[p.id]===undefined){ touch(p.id,0); walk(); } });
   const gens=[...new Set(Object.values(gen))].sort((a,b)=>a-b);
   const gIdx={}; gens.forEach((g,i)=>gIdx[g]=i);
-  const W=128,NW=112,H=195, SIB=16, COUPLE=22, ROOTGAP=40;
+  const W=158,NW=140,H=240, SIB=18, COUPLE=22, ROOTGAP=40;
 
   // 1) unidades: casal (marido+esposa) ou pessoa sozinha
   const unitOf={}, units=[];
@@ -477,7 +477,7 @@ function render(){
     return;
   }
   empty.innerHTML='';
-  const {pos}=layout(); const NW=112,NH=140;
+  const {pos}=layout(); const NW=140,NH=176;
   let maxX=0,maxY=0;Object.values(pos).forEach(o=>{maxX=Math.max(maxX,o.x+NW);maxY=Math.max(maxY,o.y+NH)});
   tree.style.width=maxX+'px';tree.style.height=maxY+'px'; treeW=maxX; treeH=maxY; applyScale(); document.getElementById('zoomCtl').hidden=false;
   // segmentos de linha com o "grupo" (casal/família) a que pertencem
@@ -487,11 +487,11 @@ function render(){
   const kidsOf={}; // família (pai+mãe) -> filhos com a posição de onde sai a linha
   people.forEach(p=>{
     if(p.spouse&&pos[p.spouse]&&pos[p.id]&&!drawn.has(p.spouse)){drawn.add(p.id);const a=pos[p.id],b=pos[p.spouse];
-      seg(ck(p.id,p.spouse),Math.min(a.x,b.x)+NW,a.y+40,Math.max(a.x,b.x),b.y+40); if(p.separated) segs[segs.length-1].sep=true;}
+      seg(ck(p.id,p.spouse),Math.min(a.x,b.x)+NW,a.y+48,Math.max(a.x,b.x),b.y+48); if(p.separated) segs[segs.length-1].sep=true;}
     const ps=(p.parents||[]).filter(x=>pos[x]);if(!ps.length||!pos[p.id])return;
     const g=ck(p.father,p.mother);
     let px,py;
-    if(ps.length===2&&pos[ps[0]].y===pos[ps[1]].y){const a=pos[ps[0]],b=pos[ps[1]];px=(Math.min(a.x,b.x)+NW+Math.max(a.x,b.x))/2;py=a.y+40}
+    if(ps.length===2&&pos[ps[0]].y===pos[ps[1]].y){const a=pos[ps[0]],b=pos[ps[1]];px=(Math.min(a.x,b.x)+NW+Math.max(a.x,b.x))/2;py=a.y+48}
     else{const a=pos[ps[0]];px=a.x+NW/2;py=a.y+NH}
     (kidsOf[g]=kidsOf[g]||{g,px,py,kids:[]}).kids.push(pos[p.id]);
   });
@@ -518,7 +518,7 @@ function render(){
     // casal separado: linha "recortada" (pontilhada, como corte de tesoura) com uma tesoura no meio
     return `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="var(--bg)" stroke-width="6"/><line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="#a8977a" stroke-width="2" stroke-dasharray="7 6" stroke-linecap="round"/><rect x="${mx-14}" y="${y-13}" width="28" height="26" rx="13" fill="var(--bg)"/><text x="${mx}" y="${y+6}" text-anchor="middle" font-size="18">✂️</text>`; }).join('');
   const fr=[]; people.forEach(p=>(p.links||[]).forEach(l=>{ if(!l.confirmado||!pos[p.id]||!pos[l.to]) return; const a=pos[p.id],b=pos[l.to]; if(a.y!==b.y) return;
-    const x1=Math.min(a.x,b.x)+NW, x2=Math.max(a.x,b.x), y=a.y+40, mx=(x1+x2)/2;
+    const x1=Math.min(a.x,b.x)+NW, x2=Math.max(a.x,b.x), y=a.y+48, mx=(x1+x2)/2;
     fr.push(`<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="#b0708a" stroke-width="2" stroke-dasharray="3 5" stroke-linecap="round"/><rect x="${mx-14}" y="${y-13}" width="28" height="26" rx="13" fill="var(--bg)"/><text x="${mx}" y="${y+6}" text-anchor="middle" font-size="16">${l.type==='namorado'?'❤️':'🤝'}</text>`); }));
   const lines=draw(segs.filter(s=>!isH(s)))+gaps+draw(segs.filter(isH))+bolts+fr.join('');
   let html=`<svg width="${maxX}" height="${maxY}">${lines}</svg>`;
@@ -531,8 +531,8 @@ function render(){
   // ao abrir: centraliza em você e repete a cada carga de dados, até você mexer na árvore
   if(!userMoved && people.length){ const me=[...people].sort((a,b)=>(a.createdAt||0)-(b.createdAt||0))[0];
     const go=()=>{ if(userMoved) return; const w=document.getElementById('wrap'), zb=document.getElementById('zoomBox'), n=document.querySelector(`.node[data-id="${me.id}"]`); if(!n) return;
-      w.scrollLeft = zb.offsetLeft + (n.offsetLeft+56)*scale - w.clientWidth/2;
-      w.scrollTop = zb.offsetTop + (n.offsetTop+70)*scale - w.clientHeight/2; };
+      w.scrollLeft = zb.offsetLeft + (n.offsetLeft+70)*scale - w.clientWidth/2;
+      w.scrollTop = zb.offsetTop + (n.offsetTop+88)*scale - w.clientHeight/2; };
     [60,400,1200].forEach(t=>setTimeout(go,t)); }
 }
 
@@ -1580,7 +1580,7 @@ if(window.NOSSIO_GAS){ (async()=>{ try{ if(await gas('iaOk')){ sampleFn={json:as
 (async()=>{try{const sf=await claude.use('sample'); if(!sf) return; sampleFn=sf; try{const L=await sf.limits(); toolsOk=!!L?.tools}catch(e){} askReady=true; render();}catch(e){}})();
 /* ---------- modo Planetas (cada família é um planeta; casamentos são pontes) ---------- */
 const Planets=(()=>{
-  const NW=112,NH=140,HROW=170;
+  const NW=140,NH=176,HROW=170;
   const cv=document.getElementById('pcv'), ctx=cv.getContext('2d');
   let W=0,H=0,dpr=1, on=false, fams=[], bridges=[], hits=[], pairMode=false, highlight=new Set();
   let cam={yaw:0.6,pitch:-0.7,T:[0,0,0],Z:1}, fitted=false;
