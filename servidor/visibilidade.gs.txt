@@ -58,7 +58,13 @@ function vincular_(r, a) {
       if (sp) { if (sp.sex === 'F' && !me.mother) me.mother = to.spouse; else if (!me.father) me.father = to.spouse; }
     } else if (rel === 'irmao') { me.father = to.father || null; me.mother = to.mother || null; }
     else if (rel === 'conjuge') { if (to.spouse) throw new Error(to.name + ' já tem cônjuge cadastrado.'); me.spouse = a.to; to.spouse = meId; salvarPessoa_(a.to, to); }
-    else if (rel === 'amigo' || rel === 'namorado') { me.links = [{ type: rel, to: a.to, confirmado: false }]; }
+    else if (rel === 'pai') {
+      if (cad.sexo === 'F' || a.sexo === 'F') { if (to.mother) throw new Error(to.name + ' já tem mãe cadastrada.'); to.mother = meId; me.sex = 'F'; }
+      else { if (to.father) throw new Error(to.name + ' já tem pai cadastrado.'); to.father = meId; me.sex = me.sex || 'M'; }
+      to.parents = [to.father, to.mother].filter(Boolean); salvarPessoa_(a.to, to);
+    }
+    // quem veio por convite já está confirmado por quem convidou
+    else if (rel === 'amigo' || rel === 'namorado') { me.links = [{ type: rel, to: a.to, confirmado: !!a.convite, convite: !!a.convite }]; }
     me.parents = [me.father, me.mother].filter(Boolean);
     salvarPessoa_(meId, me);
   }
