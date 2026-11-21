@@ -195,10 +195,12 @@ function lista_(r) {
   const c = cadLinha_(r.code), cad = c && c.data, eu = cad && cad.personId, vis = visiveis_(all, eu);
   if (cad && cad.pend) { // família ainda não confirmou: tudo vazio, menos ele mesmo
     const meu = all.find(p => p.id === eu);
-    return all.filter(p => vis.has(p.id)).map(p => p.id === eu && cad.pend.rel !== 'eu' ? p : (p.id === eu ? { id: p.id, data: Object.assign({}, vazia_(p).data, { name: cad.nome, masked: false, limited: true }) } : vazia_(p)));
+    const o = all.filter(p => vis.has(p.id)).map(p => p.id === eu && cad.pend.rel !== 'eu' ? p : (p.id === eu ? { id: p.id, data: Object.assign({}, vazia_(p).data, { name: cad.nome, masked: false, limited: true }) } : vazia_(p)));
+    return o.concat(galaxia_(all, vis, String(eu || r.code)));
   }
-  const out = all.filter(p => vis.has(p.id)).map(p => escondido_(all, p, eu) ? vazia_(p) : p);
-  return out.concat(visaoAmigos_(all, eu, vis).map(x => { const p = all.find(y => y.id === x.id); return p && escondido_(all, p, eu) ? vazia_(p) : x; }));
+  const out = all.filter(p => vis.has(p.id)).map(p => escondido_(all, p, eu) ? vazia_(p) : p)
+    .concat(visaoAmigos_(all, eu, vis).map(x => { const p = all.find(y => y.id === x.id); return p && escondido_(all, p, eu) ? vazia_(p) : x; }));
+  return out.concat(galaxia_(all, new Set(out.map(p => p.id)), String(eu || r.code)));
 }
 // quem não é o dono só altera quem enxerga com nome
 function checaSet_(r, a) {
@@ -275,4 +277,13 @@ function sair_(r) {
   const eu = c.data.personId, p = eu && pessoas_().find(x => x.id === eu);
   if (p) { p.data.saiu = Date.now(); p.data.links = []; salvarPessoa_(eu, p.data); }
   aba_('cadastro').deleteRow(c.row); return { ok: true };
+}
+
+// a galáxia: as outras famílias aparecem como planetas de fichas vazias, com códigos trocados (não dá para saber quem é quem)
+function hash_(t) { let h = 2166136261; for (let i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; } return h.toString(36); }
+function galaxia_(all, ja, sal) {
+  const fora = all.filter(p => !ja.has(p.id)); if (!fora.length) return [];
+  const ids = new Set(fora.map(p => p.id)), x = id => id && ids.has(id) ? 'x' + hash_(sal + '|' + id) : null;
+  return fora.map(p => { const d = p.data, f = x(d.father), m = x(d.mother);
+    return { id: x(p.id), data: { name: '', sex: '', father: f, mother: m, parents: [f, m].filter(Boolean), spouse: x(d.spouse), createdAt: 0, masked: true, fora: true } }; });
 }

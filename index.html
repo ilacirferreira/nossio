@@ -139,7 +139,7 @@ body.gated .sheet{max-height:100vh;height:100vh;border-radius:0}
 /* ---------- Nossio fora do Claude: dados no Google (Apps Script) ---------- */
 window.NOSSIO_GAS=true;
 // versão da tela: se o celular estiver com uma cópia antiga guardada, busca a nova e recarrega sozinho (uma vez)
-const APPVER='v20261121-1330';
+const APPVER='v20261121-1345';
 (async()=>{ try{ const t=await fetch(location.pathname+'?nv='+Date.now(),{cache:'no-store'}).then(r=>r.text()); const m=t.match(/APPVER='([^']+)'/);
   if(m&&m[1]!==APPVER&&sessionStorage.getItem('nossio-rl')!==m[1]){ sessionStorage.setItem('nossio-rl',m[1]); location.replace(location.pathname+'?nv='+m[1]+location.hash); } }catch(e){} })();
 const CODEKEY='nossio-code'; let MEMCODE='';
@@ -303,7 +303,7 @@ async function init(){
     if(!snap.metadata.fromCache){clearTimeout(timer); if(!fixedNames){fixedNames=true; setTimeout(fixOldNames,0)}}
     people = snap.docs.map(d=>Object.assign({id:d.id},JSON.parse(JSON.stringify(d.data()))));
     people.sort((a,b)=>(a.createdAt||0)-(b.createdAt||0)); normalize();
-    setStatus(`${people.length} pessoa${people.length===1?'':'s'} na árvore`+(myCad&&myCad.pend?' · aguardando a família confirmar você':canWrite?'':' · toque em ➕ Incluir pessoa para participar'));
+    setStatus(`${people.filter(p=>!p.fora).length} pessoa${people.filter(p=>!p.fora).length===1?'':'s'} na árvore`+(myCad&&myCad.pend?' · aguardando a família confirmar você':canWrite?'':' · toque em ➕ Incluir pessoa para participar'));
     render();
   }, err=>{clearTimeout(timer); setStatus('Não foi possível carregar a árvore agora.')});
 }
@@ -469,6 +469,10 @@ function lifeLine(p){const b=year(p.birth),d=year(p.death);if(p.deceased)return 
 
 function render(){
   if(typeof viewMode!=='undefined' && viewMode==='plan'){ Planets.refresh(); return; }
+  if(people.some(p=>p.fora)){ const all=people; people=all.filter(p=>!p.fora); try{ renderPlanta(); } finally { people=all; } return; }
+  renderPlanta();
+}
+function renderPlanta(){
   const tree=document.getElementById('tree'), empty=document.getElementById('emptyBox'), fab=document.getElementById('fab');
   fab.hidden = true; const pendM=!!(myCad&&myCad.pend); document.getElementById('incBtn').hidden = pendM || !((canWrite||window.NOSSIO_GAS) && people.length); document.getElementById('dupBtn').hidden = !(isOwner && canWrite && people.length>=2); updNewsBtn(); document.getElementById('kinBtn').hidden = people.length<2; document.getElementById('findBtn').hidden = people.length<2; document.getElementById('invBtn').hidden = !(window.NOSSIO_GAS && (isOwner || (myCad&&myCad.personId))); document.getElementById('askBtn').hidden = !(askReady && people.length>=2); document.getElementById('tellBtn').hidden = pendM || !((askReady||window.NOSSIO_GAS) && people.length>=1);
   if(!people.length){
@@ -588,7 +592,7 @@ function openFind(){
   openSheet(`<h2>Centralizar em…</h2><input id="findIn" class="inp" style="width:100%" placeholder="Digite nome ou apelido"><div class="findList" id="findList"></div>`);
   const list=document.getElementById('findList'), inp=document.getElementById('findIn');
   const show=()=>{const q=norm(inp.value);
-    const hits=people.filter(p=>!q||norm(p.name).includes(q)||norm(p.apelido).includes(q)).slice(0,60);
+    const hits=people.filter(p=>!p.masked).filter(p=>!q||norm(p.name).includes(q)||norm(p.apelido).includes(q)).slice(0,60);
     list.innerHTML=hits.map(p=>`<button class="findItem" data-id="${p.id}">${esc(p.name)}${p.apelido?' ("'+esc(p.apelido)+'")':''}<small>${esc(relationOf(p))}</small></button>`).join('')||'<div class="sub" style="padding:10px">Ninguém com esse nome.</div>';
     list.querySelectorAll('.findItem').forEach(b=>b.onclick=()=>centerOn(b.dataset.id));};
   inp.oninput=show; show();
@@ -641,7 +645,7 @@ function dupScore(a,b){
   return {sc,why};
 }
 function findDups(){
-  const list=people.filter(p=>!p.unnamed), out=[];
+  const list=people.filter(p=>!p.unnamed&&!p.masked), out=[];
   for(let i=0;i<list.length;i++) for(let j=i+1;j<list.length;j++){ const a=list[i], b=list[j];
     if((a.notDup||[]).includes(b.id)||(b.notDup||[]).includes(a.id)) continue;
     const r=dupScore(a,b); if(r&&r.sc>=0.9) out.push({a,b,...r}); }
@@ -676,7 +680,7 @@ function showCadBar(){ const b=document.getElementById('cadBar'); if(!b) return;
 /* entrada de quem recebeu convite: 1) quem é você na árvore  2) cadastro */
 let cadWho=null; // {personId} ou {novo:true, rel:'filho'|'conjuge'|'irmao', to:id}
 function pickPerson(title,sub,onPick,extra){
-  const list=people.filter(p=>!p.unnamed).sort((a,b)=>a.name.localeCompare(b.name,'pt-BR'));
+  const list=people.filter(p=>!p.unnamed&&!p.masked).sort((a,b)=>a.name.localeCompare(b.name,'pt-BR'));
   openSheet(`<h2>${title}</h2><div class="sub">${sub}</div>
   <input id="ppQ" class="inp cad" placeholder="Digite um nome para procurar…" autocomplete="off">
   <div id="ppL" style="margin-top:8px;max-height:46vh;overflow:auto"></div>${extra||''}`);
@@ -1469,7 +1473,7 @@ async function saveForm(baseId,kind,dec){
 
 document.getElementById('incBtn').onclick=document.getElementById('fab').onclick=()=>{
   if(!canWrite){ if(window.NOSSIO_GAS){ if(wantWrite&&!myCad) return openCad(); return openCode(); } return; }
-  const list=people.filter(p=>!p.unnamed).sort((a,b)=>a.name.localeCompare(b.name,'pt-BR'));
+  const list=people.filter(p=>!p.unnamed&&!p.masked).sort((a,b)=>a.name.localeCompare(b.name,'pt-BR'));
   openSheet(`<h2>Incluir pessoa</h2><div class="sub">Três passos rápidos. Só entra quem tem um parente que já está na árvore.</div>
   <label class="lbl" style="font-size:14px;color:var(--ink)"><b>1. Quem da árvore é parente da pessoa nova?</b></label>
   <input id="incQ" class="inp cad" placeholder="Digite o nome — ex.: Jacy" autocomplete="off">
@@ -1553,7 +1557,7 @@ function parseConta(txt){
 function famSurnames(p,depth){ const out=new Set(); if(!p) return out; nrm(p.name).split(' ').slice(1).forEach(w=>w&&out.add(w));
   if((depth||0)<2) [p.father,p.mother,p.spouse].forEach(id=>{ const r=byId(id); if(r&&!r.unnamed) famSurnames(r,(depth||0)+1).forEach(w=>out.add(w)); }); return out; }
 function findByName(n){ const q=nrm(n); if(!q) return {none:true};
-  const all=people.filter(p=>!p.unnamed), toks=q.split(' '), first=toks[0], sur=toks.slice(1);
+  const all=people.filter(p=>!p.unnamed&&!p.masked), toks=q.split(' '), first=toks[0], sur=toks.slice(1);
   let hit=all.filter(p=>nrm(p.name)===q); if(hit.length===1) return {p:hit[0],exact:q.includes(' ')};
   if(sur.length){
     // nome + sobrenome: mesmo primeiro nome (ou apelido) e sobrenomes presentes no nome ou na família da pessoa
@@ -1651,8 +1655,8 @@ const Planets=(()=>{
     fams=units.filter(u=>!u.parent).map(r=>{ const blood=[],visit=[],st=[r]; while(st.length){const v=st.pop(); v.m.forEach(x=>{ if(v.foreign===x) visit.push(x); else blood.push(x); }); st.push(...v.kids);} return {root:r,key:r.m.map(x=>x.id).sort().join('+'),blood,visit}; });
     units.forEach(u=>{ if(!u.foreign) return; const f=fams.find(f=>f.root===topU(U[u.foreign.father]||U[u.foreign.mother])); if(f&&!f.blood.includes(u.foreign)) f.blood.push(u.foreign); if(f&&u.anchor&&!f.visit.includes(u.anchor)&&!f.blood.includes(u.anchor)) f.visit.push(u.anchor); });
     fams.forEach(f=>{ const cnt={}; f.blood.filter(p=>!p.unnamed).forEach(p=>{const w=p.name.trim().split(/\s+/); if(w.length>1){const l=w[w.length-1]; cnt[l]=(cnt[l]||0)+1}});
-      const best=Object.entries(cnt).sort((a,b)=>b[1]-a[1])[0]; const lead=f.blood.filter(p=>!p.unnamed).sort((a,b)=>(a.createdAt||0)-(b.createdAt||0))[0];
-      f.name= best&&best[1]>=2?'Família '+best[0]:'Família de '+(lead?call(lead):'?'); });
+      const best=Object.entries(cnt).sort((a,b)=>b[1]-a[1])[0]; const lead=f.blood.filter(p=>!p.unnamed&&!p.masked).sort((a,b)=>(a.createdAt||0)-(b.createdAt||0))[0];
+      f.name= best&&best[1]>=2?'Família '+best[0]:lead?'Família de '+call(lead):'Família'; });
     bridges=[];
     units.forEach(u=>{ if(!u.foreign) return; const a=fams.find(f=>f.root===topU(u)), b=fams.find(f=>f.root===topU(U[u.foreign.father]||U[u.foreign.mother])); if(a&&b&&a!==b) bridges.push({a,b,pa:u.anchor,pb:u.foreign}); });
     // cada família desenhada como na planta e enrolada na esfera
