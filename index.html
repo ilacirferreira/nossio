@@ -65,6 +65,7 @@ h1 span{color:var(--green)}
 @keyframes pulse{50%{transform:scale(1.08)}}
 .findList{max-height:55vh;overflow:auto}.findItem{display:block;width:100%;text-align:left;padding:11px 10px;border:0;border-bottom:1px solid #eee5d4;background:none;font:inherit;font-size:15px;cursor:pointer}.findItem small{color:var(--muted);display:block;font-size:12px}
 .node.prov{border-style:dashed;border-color:var(--amber)}
+.node.masked{background:#ece5d6;border-style:dashed;opacity:.7}.node.masked .av{background:#ddd3bf;color:#9c8f76}
 .node.prov .nm{font-style:italic;color:#6b5a3a}
 .chip{display:inline-block;font-size:10px;padding:2px 6px;border-radius:8px;margin-top:4px;background:var(--amber-soft);color:var(--amber);font-weight:600}
 .missing{background:var(--amber-soft);color:#7a5414;border-radius:10px;padding:10px 12px;font-size:13px;line-height:1.5;margin:8px 0}
@@ -116,10 +117,11 @@ a.pl{color:var(--green);font-weight:600;text-decoration:none;border-bottom:1px d
 body.gated header,body.gated #wrap,body.gated #status,body.gated .zoomCtl,body.gated #zoomCtl{visibility:hidden}
 body.gated #scrim{background:#f5efe3;opacity:1;pointer-events:none}
 body.gated .sheet{max-height:100vh;height:100vh;border-radius:0}
+.regras{margin-top:14px;padding:10px 12px;background:#efe7d6;border-radius:10px;font-size:13px;line-height:1.4}.regras ul{margin:6px 0 0 18px;padding:0}.regras li{margin:3px 0}
 </style>
 </head>
 <body>
-<header><div class="hTop"><h1>Nossi<span>o</span></h1><div class="vSeg"><button id="vTree" class="on" title="Planta">🌳<span class="lg"> Planta</span></button><button id="vPlan" title="Planetas">🪐<span class="lg"> Planetas</span></button></div><span class="tag">ENSAIO</span><div class="hBtns"><button class="hb big" id="tellBtn" title="Escreva o que você sabe, do seu jeito: “Carol é filha de Jacy e Márcia”, “Warley faleceu”. O Nossio monta a árvore." hidden style="background:var(--green,#2e6b4f);color:#fff;border-color:transparent"><b>✍️ Contar</b><small>Escreva o que você sabe, do seu jeito: “Carol é filha de Jacy e Márcia”, “Warley faleceu”. O Nossio monta a árvore.</small></button><button class="hb big" id="incBtn" title="Escolha um parente que já está na árvore e diga quem é a pessoa nova." hidden><b>➕ Incluir<span class="lg"> pessoa</span></b><small>Escolha um parente que já está na árvore e diga quem é a pessoa nova.</small></button><button class="hb big" id="findBtn" title="Procure alguém e vá direto até a pessoa na árvore." hidden><b>🎯<span class="lg2"> Centralizar</span></b><small>Procure alguém e vá direto até a pessoa na árvore.</small></button><button class="hb" id="askBtn" hidden>❓ Perguntar</button><button class="hb" id="kinBtn" hidden>🔀 Comparar</button><button class="hb" id="newsBtn" hidden>🔔 Novidades</button><button class="hb" id="dupBtn" hidden>👥 Duplicados</button><button class="hb" id="codeBtn" hidden>🔑 Tenho um código</button></div></div>
+<header><div class="hTop"><h1>Nossi<span>o</span></h1><div class="vSeg"><button id="vTree" class="on" title="Planta">🌳<span class="lg"> Planta</span></button><button id="vPlan" title="Planetas">🪐<span class="lg"> Planetas</span></button></div><span class="tag">ENSAIO</span><div class="hBtns"><button class="hb big" id="tellBtn" title="Escreva o que você sabe, do seu jeito: “Carol é filha de Jacy e Márcia”, “Warley faleceu”. O Nossio monta a árvore." hidden style="background:var(--green,#2e6b4f);color:#fff;border-color:transparent"><b>✍️ Contar</b><small>Escreva o que você sabe, do seu jeito: “Carol é filha de Jacy e Márcia”, “Warley faleceu”. O Nossio monta a árvore.</small></button><button class="hb big" id="incBtn" title="Escolha um parente que já está na árvore e diga quem é a pessoa nova." hidden><b>➕ Incluir<span class="lg"> pessoa</span></b><small>Escolha um parente que já está na árvore e diga quem é a pessoa nova.</small></button><button class="hb big" id="findBtn" title="Procure alguém e vá direto até a pessoa na árvore." hidden><b>🎯<span class="lg2"> Centralizar</span></b><small>Procure alguém e vá direto até a pessoa na árvore.</small></button><button class="hb" id="askBtn" hidden>❓ Perguntar</button><button class="hb" id="kinBtn" hidden>🔀 Comparar</button><button class="hb" id="newsBtn" hidden>🔔 Novidades</button><button class="hb" id="dupBtn" hidden>👥 Duplicados</button><button class="hb" id="invBtn" hidden>💌 Convidar</button><button class="hb" id="codeBtn" hidden>🔑 Tenho um código</button></div></div>
 </header>
 <div class="status" id="status">Carregando…</div>
 <div id="cadBar" hidden style="margin:0 16px 8px;padding:10px 12px;border:1px solid #e0c48a;background:#fff6e3;border-radius:12px;font-size:14px;display:flex;gap:10px;align-items:center"><span style="flex:1">Falta pouco: diga quem você é na árvore e complete o cadastro.</span><button class="btn green" id="cadBtn" style="padding:8px 14px">Completar</button></div>
@@ -137,7 +139,7 @@ body.gated .sheet{max-height:100vh;height:100vh;border-radius:0}
 /* ---------- Nossio fora do Claude: dados no Google (Apps Script) ---------- */
 window.NOSSIO_GAS=true;
 // versão da tela: se o celular estiver com uma cópia antiga guardada, busca a nova e recarrega sozinho (uma vez)
-const APPVER='v20261121-1200';
+const APPVER='v20261121-1245';
 (async()=>{ try{ const t=await fetch(location.pathname+'?nv='+Date.now(),{cache:'no-store'}).then(r=>r.text()); const m=t.match(/APPVER='([^']+)'/);
   if(m&&m[1]!==APPVER&&sessionStorage.getItem('nossio-rl')!==m[1]){ sessionStorage.setItem('nossio-rl',m[1]); location.replace(location.pathname+'?nv='+m[1]+location.hash); } }catch(e){} })();
 const CODEKEY='nossio-code'; let MEMCODE='';
@@ -157,7 +159,7 @@ const GDB={collection:(c)=>({
 const GUSER={can:async()=>{const m=await meP(); return m.role!=='view'}, isOwner:async()=>{const m=await meP(); return m.role==='owner'}, canEdit:async()=>{const m=await meP(); return m.role==='owner'}, id:async()=>{const m=await meP(); return m.uid}};
 window.claude={use:async n=>n==='db'?GDB:n==='user'?GUSER:null};
 // convite pelo link: ...exec?c=NOS-XXXX-XXXX já entra com o código
-window.__locReady=(async()=>{ try{ const q=new URLSearchParams(location.search); const c=String(q.get('convite')||q.get('c')||'').trim().toUpperCase(); if(c){ LSset(CODEKEY,c); history.replaceState(null,'',location.pathname); } }catch(e){}
+window.__locReady=(async()=>{ try{ const q=new URLSearchParams(location.search); const c=String(q.get('convite')||q.get('c')||'').trim().toUpperCase(); if(c){ LSset(CODEKEY,c); history.replaceState(null,'',location.pathname); } const de=String(q.get('de')||'').trim(); if(de){ LSset('nossio-de',de); history.replaceState(null,'',location.pathname); } }catch(e){}
   // link único: quem não tem código ganha um código próprio deste aparelho
   if(!LSget(CODEKEY)){ const A='ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let k='DEV-'; const r=new Uint32Array(16); try{crypto.getRandomValues(r)}catch(e){for(let i=0;i<16;i++)r[i]=Math.random()*1e9} for(let i=0;i<16;i++) k+=A[r[i]%A.length]; LSset(CODEKEY,k); } })();
 // Nossio em pausa: quem não é o dono vê só um aviso
@@ -288,12 +290,15 @@ async function init(){
     showCadBar();
     // quem recebeu o link e ainda não preencheu o cadastro não vê nada da árvore
     if(window.NOSSIO_GAS && !myCad){ showGate(); return; }
+    if(window.NOSSIO_GAS && !myCad.personId){ askHow(); return; }
+    setTimeout(checkPedidos,1500);
   }
   const cb=document.getElementById('codeBtn'); if(cb){ cb.hidden=!(window.NOSSIO_GAS && !isOwner && !wantWrite); cb.onclick=openCode; }
+  if(isOwner && window.NOSSIO_GAS) setTimeout(checkPedidos,2500);
   setStatus('Conectando…');
   const timer = setTimeout(()=>setStatus('Os dados ainda não chegaram — verifique a internet.'),10000);
   if(window.__unsub) window.__unsub();
-  window.__unsub = col.onSnapshot(snap=>{ if(window.__askWho) setTimeout(()=>{ if(window.__askWho) askWho(); },600);
+  window.__unsub = col.onSnapshot(snap=>{
     if(!snap.metadata.fromCache){clearTimeout(timer); if(!fixedNames){fixedNames=true; setTimeout(fixOldNames,0)}}
     people = snap.docs.map(d=>Object.assign({id:d.id},JSON.parse(JSON.stringify(d.data()))));
     people.sort((a,b)=>(a.createdAt||0)-(b.createdAt||0)); normalize();
@@ -366,6 +371,9 @@ function layout(){
     const n=ks.length; ks.forEach((k,i)=>{ if(k.foreign) sideOf[k.id] = i<(n-1)/2 ? -1 : 1; });
   });
   units.forEach(u=>{ if(u.foreign && !u.parent) sideOf[u.id]=sideOf[u.id]||1; });
+  // quem tem amigo/namorado aceito fica na ponta da fila de irmãos, para o amigo entrar logo ao lado
+  people.forEach(p=>{ const tem=(p.links||[]).some(l=>l.confirmado&&byId(l.to)) || people.some(o=>(o.links||[]).some(l=>l.confirmado&&l.to===p.id));
+    if(tem&&hasPar(p)&&unitOf[p.id]&&sideOf[unitOf[p.id].id]===undefined) sideOf[unitOf[p.id].id]=1; });
   // 2º: na família do cônjuge de fora, o ramo que leva até ele fica na ponta virada para o outro lado
   units.forEach(u=>{ if(!u.foreign) return; const s=sideOf[u.id]||1;
     let v=unitOf[u.foreign.father]||unitOf[u.foreign.mother], n=0;
@@ -423,13 +431,17 @@ function layout(){
   const top=u=>{ let v=u; while(v.parent) v=v.parent; return v; };
   const placed=new Set(), F={n:[],c:{}};
   const inTree=(r)=>{ const s=[]; const st=[r]; while(st.length){const v=st.pop(); s.push(v); st.push(...v.kids);} return s; };
-  const blocks=[]; const addRoot=(r,side,anchor)=>{ const S=lay(r);
+  const blocks=[]; const addRoot=(r,side,anchor,friend)=>{ const S=lay(r);
+    // amigo/namorado: abre espaço logo à direita de quem o aceitou e entra ali
+    if(friend&&F.n.length){ const a=F.n.find(o=>o.id===anchor), t=S.n.find(o=>r.m.some(m=>m.id===o.id));
+      if(a&&t){ F.n.forEach(o=>{ if(o.x>a.x) o.x+=W+40; }); for(const k in F.c) delete F.c[k]; F.n.forEach(o=>merge(F.c,{[o.g]:[o.x,o.x+NW]},0));
+        shift(S,a.x+W+40-t.x); F.n.push(...S.n); merge(F.c,S.c,0); inTree(r).forEach(v=>placed.add(v)); blocks.push({r,S}); return; } }
     // família de quem casou: tenta pôr os pais logo acima do filho/filha (se houver espaço livre ali)
     let done=false;
     if(F.n.length&&anchor){ const a=F.n.find(o=>o.id===anchor), tops=S.n.filter(o=>r.m.some(m=>m.id===o.id));
       if(a&&tops.length){ const cx=tops.reduce((t,o)=>t+o.x,0)/tops.length; const base=a.x-cx;
         const free=dx=>S.n.every(o=>!F.n.some(q=>q.g===o.g&&Math.abs(q.x-(o.x+dx))<W));
-        for(const k of [0,-0.5,0.5,-1,1,-1.5,1.5,-2,2,-3,3]){ const dx=base+k*W; if(free(dx)){ shift(S,dx); done=true; break; } } } }
+        for(const k of [0,-0.5,0.5,-1,1,-1.5,1.5,-2,2,-3,3,-4,4,-5,5,-6,6,-8,8]){ const dx=base+k*W; if(free(dx)){ shift(S,dx); done=true; break; } } } }
     if(F.n.length&&!done) shift(S,pack(F,S,side,ROOTGAP)); F.n.push(...S.n); merge(F.c,S.c,0); inTree(r).forEach(v=>placed.add(v)); blocks.push({r,S}); };
   const first=top(unitOf[people[0].id]); addRoot(first,1);
   let guard=0;
@@ -437,8 +449,12 @@ function layout(){
     // família ainda não desenhada que tem um casamento com quem já está na árvore
     let found=null;
     for(const u of units){ if(!placed.has(u)||!u.foreign) continue; const r=top(unitOf[u.foreign.father]||unitOf[u.foreign.mother]); if(r&&!placed.has(r)){found={r,side:sideOf[u.id]||1,anchor:u.foreign.id};break;} }
+    if(!found){ // amigo/namorado aceito: entra logo ao lado de quem o aceitou
+      const pl=new Set(F.n.map(o=>o.id));
+      for(const u of units){ if(placed.has(u)) continue; for(const m of u.m){ const l=(m.links||[]).find(l=>l.confirmado&&pl.has(l.to)); const back=!l&&people.find(o=>pl.has(o.id)&&(o.links||[]).some(l=>l.confirmado&&l.to===m.id));
+        const a=l?l.to:back?back.id:null; if(a){ found={r:top(u),side:1,anchor:a,friend:true}; break; } } if(found) break; } }
     if(!found){ const r=roots.find(r=>!placed.has(r))||units.find(u=>!placed.has(u)); found={r:top(r),side:1}; }
-    addRoot(found.r,found.side,found.anchor);
+    addRoot(found.r,found.side,found.anchor,found.friend);
   }
   // deslocamento escolhido pelo usuário (setas "mover a família"): cada toque anda a largura de um cartão
   blocks.forEach(({r,S})=>{ const dx=r.m.reduce((a,m)=>a+(m.dx||0),0); if(dx) S.n.forEach(o=>o.x+=dx*W); });
@@ -453,7 +469,7 @@ function lifeLine(p){const b=year(p.birth),d=year(p.death);if(p.deceased)return 
 function render(){
   if(typeof viewMode!=='undefined' && viewMode==='plan'){ Planets.refresh(); return; }
   const tree=document.getElementById('tree'), empty=document.getElementById('emptyBox'), fab=document.getElementById('fab');
-  fab.hidden = true; document.getElementById('incBtn').hidden = !((canWrite||window.NOSSIO_GAS) && people.length); document.getElementById('dupBtn').hidden = !(isOwner && canWrite && people.length>=2); updNewsBtn(); document.getElementById('kinBtn').hidden = people.length<2; document.getElementById('findBtn').hidden = people.length<2; document.getElementById('askBtn').hidden = !(askReady && people.length>=2); document.getElementById('tellBtn').hidden = !((askReady||window.NOSSIO_GAS) && people.length>=1);
+  fab.hidden = true; document.getElementById('incBtn').hidden = !((canWrite||window.NOSSIO_GAS) && people.length); document.getElementById('dupBtn').hidden = !(isOwner && canWrite && people.length>=2); updNewsBtn(); document.getElementById('kinBtn').hidden = people.length<2; document.getElementById('findBtn').hidden = people.length<2; document.getElementById('invBtn').hidden = !(window.NOSSIO_GAS && (isOwner || (myCad&&myCad.personId))); document.getElementById('askBtn').hidden = !(askReady && people.length>=2); document.getElementById('tellBtn').hidden = !((askReady||window.NOSSIO_GAS) && people.length>=1);
   if(!people.length){
     tree.innerHTML=''; tree.style.width=tree.style.height='0'; treeW=treeH=0; applyScale(); document.getElementById('zoomCtl').hidden=true;
     empty.innerHTML = canWrite ? `<div class="empty"><h2>Vamos começar por você</h2><p>Cadastre-se primeiro. Depois toque em qualquer pessoa da árvore para incluir pais, filhos, irmãos e cônjuge.</p><button class="btn green" id="startBtn">Cadastrar-me</button></div>` : `<div class="empty"><p>A árvore ainda está vazia.</p></div>`;
@@ -501,9 +517,13 @@ function render(){
   const bolts=segs.filter(s=>s.sep).map(s=>{ const x1=Math.min(s.x1,s.x2), x2=Math.max(s.x1,s.x2), mx=(x1+x2)/2, y=s.y1;
     // casal separado: linha "recortada" (pontilhada, como corte de tesoura) com uma tesoura no meio
     return `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="var(--bg)" stroke-width="6"/><line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="#a8977a" stroke-width="2" stroke-dasharray="7 6" stroke-linecap="round"/><rect x="${mx-14}" y="${y-13}" width="28" height="26" rx="13" fill="var(--bg)"/><text x="${mx}" y="${y+6}" text-anchor="middle" font-size="18">✂️</text>`; }).join('');
-  const lines=draw(segs.filter(s=>!isH(s)))+gaps+draw(segs.filter(isH))+bolts;
+  const fr=[]; people.forEach(p=>(p.links||[]).forEach(l=>{ if(!l.confirmado||!pos[p.id]||!pos[l.to]) return; const a=pos[p.id],b=pos[l.to]; if(a.y!==b.y) return;
+    const x1=Math.min(a.x,b.x)+NW, x2=Math.max(a.x,b.x), y=a.y+40, mx=(x1+x2)/2;
+    fr.push(`<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="#b0708a" stroke-width="2" stroke-dasharray="3 5" stroke-linecap="round"/><rect x="${mx-14}" y="${y-13}" width="28" height="26" rx="13" fill="var(--bg)"/><text x="${mx}" y="${y+6}" text-anchor="middle" font-size="16">${l.type==='namorado'?'❤️':'🤝'}</text>`); }));
+  const lines=draw(segs.filter(s=>!isH(s)))+gaps+draw(segs.filter(isH))+bolts+fr.join('');
   let html=`<svg width="${maxX}" height="${maxY}">${lines}</svg>`;
   people.forEach((p,i)=>{const o=pos[p.id];if(!o)return;
+    if(p.masked){ html+=`<div class="node masked" style="left:${o.x}px;top:${o.y}px" data-id="${p.id}"><div class="av">?</div></div>`; return; }
     html+=`<div class="node ${i===0?'root':''} ${p.deceased?'dead':isMinor(p)?'minor':''} ${isProv(p)?'prov':''}" style="left:${o.x}px;top:${o.y}px" data-id="${p.id}">${avatar(p)}<div class="nm">${esc(shortName(p))}${p.deceased?' <span title="falecido(a)">†</span>':''}</div><div class="dt">${esc(lifeLine(p))}</div>${isProv(p)?'<span class="chip">a confirmar</span>':''}</div>`});
   tree.innerHTML=html;
   tree.querySelectorAll('.node').forEach(n=>n.onclick=()=>openPerson(n.dataset.id));
@@ -737,6 +757,12 @@ async function applyLink(data,sexo){
       document.getElementById('okGo').onclick=closeSheet;
 }
 /* ---------- portão: antes de ver a árvore, a pessoa preenche o cadastro ---------- */
+const REGRAS=`<div class="regras"><b>Regras do Nossio</b><ul>
+  <li>O Nossio existe para unir famílias. Ninguém é exposto nem constrangido: respeite todos.</li>
+  <li>Coloque só informações verdadeiras. Os dados são contados pelos próprios familiares e podem ter erros; sempre dá para corrigir.</li>
+  <li>Cada pessoa vê só a própria família: parentes de sangue e por casamento.</li>
+  <li>Você pode pedir para sair quando quiser.</li>
+  <li>O Nossio segue as leis do Brasil e cumpre as requisições de autoridades competentes, na forma da lei.</li></ul></div>`;
 function showGate(){ document.body.classList.add('gated'); setStatus(''); cadWho=null;
   openSheet(`<h1 style="font-size:34px;margin:4px 0 6px">Nossi<span>o</span></h1>
   <div class="sub" style="font-size:15px">Uma grande árvore que liga famílias. Conte quem você é para entrar — leva 30 segundos.</div>
@@ -744,8 +770,10 @@ function showGate(){ document.body.classList.add('gated'); setStatus(''); cadWho
   <label class="lbl gq">Qual a sua data de nascimento?</label><input id="gNasc" class="inp cad" type="date">
   <label class="lbl gq">Em que cidade você nasceu?</label><input id="gNat" class="inp cad" placeholder="Ex.: Montes Claros - MG">
   <label class="lbl gq">Em que cidade você mora?</label><input id="gCid" class="inp cad" placeholder="Ex.: Belo Horizonte - MG">
+  ${REGRAS}
   <div id="gErr" style="color:var(--red);font-size:14px;min-height:18px;margin-top:8px"></div>
-  <button class="btn green" id="gGo" style="width:100%;font-size:17px;padding:15px">Entrar</button>`);
+  <button class="btn green" id="gGo" style="width:100%;font-size:17px;padding:15px">Concordo e quero entrar</button>
+  <div class="sub" style="text-align:center;margin-top:8px;font-size:13px">Ao entrar, você concorda com as regras acima.</div>`);
   document.getElementById('gGo').onclick=async()=>{ const g=id=>document.getElementById(id).value.trim(), err=t=>document.getElementById('gErr').textContent=t;
     const nome=fmtName(g('gNome').replace(/\s+/g,' '));
     if(nome.split(' ').filter(w=>w.length>1).length<2) return err('Escreva o nome completo (nome e sobrenome).');
@@ -753,38 +781,104 @@ function showGate(){ document.body.classList.add('gated'); setStatus(''); cadWho
     if(g('gNat').length<2) return err('Informe a cidade onde você nasceu.');
     if(g('gCid').length<2) return err('Informe a cidade onde você mora.');
     const btn=document.getElementById('gGo'); btn.disabled=true; btn.textContent='Entrando…';
-    const data={nome,cpf:'',cidade:g('gCid'),naturalidade:g('gNat'),nascimento:g('gNasc'),mae:'',pai:'',apelido:'',aceite:true,sexo:'',personId:null,atualizado:Date.now()};
-    try{ await db.collection('cadastro').doc(myId).set(data); myCad=data; unGate(); init(); }
-    catch(e){ btn.disabled=false; btn.textContent='Entrar'; err('Não foi possível entrar agora. Tente de novo.'); } };
+    const data={nome,cpf:'',cidade:g('gCid'),naturalidade:g('gNat'),nascimento:g('gNasc'),mae:'',pai:'',apelido:'',aceite:true,aceiteRegras:Date.now(),sexo:'',personId:null,atualizado:Date.now()};
+    try{ await db.collection('cadastro').doc(myId).set(data); myCad=data; askHow(); }
+    catch(e){ btn.disabled=false; btn.textContent='Concordo e quero entrar'; err('Não foi possível entrar agora. Tente de novo.'); } };
 }
-function unGate(){ document.body.classList.remove('gated'); closeSheet(); window.__askWho=true; }
-// tela 2: as 2 ou 3 pessoas da árvore mais parecidas com o nome de quem entrou
-function whoCandidates(){ const n=nrm(myCad&&myCad.nome), first=n.split(' ')[0], yr=year(myCad&&myCad.nascimento);
-  return people.filter(p=>!p.unnamed).map(p=>{ const pn=nrm(p.name), pf=pn.split(' ')[0], ap=nrm(p.apelido);
-      let sc=Math.max(jw(n,pn)*0.9, jw(first,pf)*0.8+(pn.split(' ').slice(1).some(w=>n.includes(w))?0.15:0), ap?jw(first,ap)*0.8:0);
-      const py=year(p.birth); if(yr&&py) sc+=Math.abs(yr-py)<=1?0.1:-0.3;
-      return {p,sc}; }).filter(x=>x.sc>0.72).sort((a,b)=>b.sc-a.sc).slice(0,3).map(x=>x.p); }
-function askWho(){ window.__askWho=false; const cands=whoCandidates();
-  const ctx=p=>{ const F=byId(p.father),M=byId(p.mother),S=byId(p.spouse), sib=siblingsOf(p).filter(x=>x!==p).slice(0,2); const b=[];
-    if(F||M) b.push(g(p,'filho','filha')+' de '+[F,M].filter(Boolean).map(x=>x.name).join(' e ')); if(sib.length) b.push(g(p,'irmão','irmã')+' de '+sib.map(call).join(' e ')); if(S) b.push((p.sex==='F'?'esposa':'marido')+' de '+call(S)); return b.join(' · '); };
-  if(!cands.length) return askRelation();
-  let sel=null;
-  openSheet(`<h2>Encontramos alguém parecido 👀</h2><div class="sub">É você? Toque na pessoa certa.</div>
-    ${cands.map(p=>`<button class="btn ghost wc" data-w="${p.id}" style="display:flex;gap:12px;align-items:center;width:100%;text-align:left;margin-bottom:8px;padding:12px"><span class="av" style="width:40px;height:40px;border-radius:50%;background:#e8e0d0;display:flex;align-items:center;justify-content:center;font-family:Fraunces,serif;flex:none">${esc((p.name||'?').trim().charAt(0).toUpperCase())}</span><span><b>${esc(p.name)}</b><span class="sub" style="display:block;margin:2px 0 0">${esc(ctx(p))}</span></span></button>`).join('')}
-    <button class="btn ghost" id="wNone" style="width:100%;border-style:dashed;margin-top:4px">Não sou nenhuma dessas — sou parente de alguém da árvore</button>
-    <button class="btn green" id="wGo" style="width:100%;margin-top:12px;font-size:17px;padding:14px" disabled>Sou eu — entrar</button>`);
-  document.querySelectorAll('.wc').forEach(b=>b.onclick=()=>{ sel=b.dataset.w; document.querySelectorAll('.wc').forEach(x=>{x.style.background='';x.style.borderColor='';}); b.style.background='#e3f1e8'; b.style.borderColor='var(--green,#2e6b4f)'; document.getElementById('wGo').disabled=false; });
-  document.getElementById('wNone').onclick=askRelation;
-  document.getElementById('wGo').onclick=()=>{ if(!sel) return; cadWho={personId:sel}; applyLink(myCad,''); };
+function unGate(){ document.body.classList.remove('gated'); closeSheet(); }
+/* ---------- depois do cadastro: como a pessoa chegou (sem mostrar ninguém da árvore) ---------- */
+const CONVKEY='nossio-de';
+const opt=(k,t)=>`<button class="btn ghost" data-h="${k}" style="display:block;width:100%;margin-bottom:8px;text-align:left;padding:13px">${t}</button>`;
+async function askHow(){ document.body.classList.add('gated');
+  const de=LSget(CONVKEY);
+  if(de){ let q=null; try{ q=await gas('convidou',{id:de}); }catch(e){}
+    if(q&&q.nome) return askInvite(de,q.nome); }
+  openSheet(`<h2>Como você chegou ao Nossio?</h2><div class="sub">Escolha o que mais combina com você.</div>
+    ${opt('eu','🙋 Alguém da família já me colocou na árvore')}
+    ${opt('filho','👶 Sou filho(a) de alguém que está no Nossio')}
+    ${opt('conjuge','💍 Sou marido / esposa de alguém')}
+    ${opt('irmao','👫 Sou irmão / irmã de alguém')}
+    ${opt('namorado','❤️ Sou namorado(a) de alguém')}
+    ${opt('amigo','🤝 Sou amigo(a) de alguém')}
+    ${opt('conhecer','🌱 Só quero conhecer e começar a minha árvore')}`);
+  document.querySelectorAll('[data-h]').forEach(b=>b.onclick=()=>{ const r=b.dataset.h; if(r==='conhecer') return doLink({rel:'conhecer'}); askName(r); });
 }
-// tela 3: não é ninguém da lista — de quem é parente
-function askRelation(){
-  openSheet(`<h2>De quem você é parente?</h2><div class="sub">Escolha uma opção e procure a pessoa.</div>
-    <button class="btn ghost" data-r="filho" style="display:block;width:100%;margin-bottom:8px;text-align:left">👶 Sou filho(a) de…</button>
-    <button class="btn ghost" data-r="conjuge" style="display:block;width:100%;margin-bottom:8px;text-align:left">💍 Sou marido / esposa de…</button>
-    <button class="btn ghost" data-r="irmao" style="display:block;width:100%;text-align:left">👫 Sou irmão / irmã de…</button>`);
-  const T={filho:'De quem você é filho(a)?',conjuge:'Com quem você é casado(a)?',irmao:'De quem você é irmão / irmã?'};
-  document.querySelectorAll('[data-r]').forEach(b=>b.onclick=()=>pickPerson(T[b.dataset.r],'Procure o nome e toque nele.',p=>{ cadWho={novo:true,rel:b.dataset.r,to:p.id}; applyLink(myCad,''); }));
+const PERG={eu:'Quem colocou você? Escreva o seu nome como acha que está na árvore — ou o de um parente seu que está lá.',filho:'Qual o nome do seu pai ou da sua mãe?',conjuge:'Qual o nome do seu marido / da sua esposa?',irmao:'Qual o nome do seu irmão / da sua irmã?',namorado:'Qual o nome do seu namorado / da sua namorada?',amigo:'Qual o nome do seu amigo / da sua amiga?'};
+function askName(rel){
+  openSheet(`<h2>${PERG[rel]}</h2><div class="sub">Escreva o nome completo, se souber.</div>
+    <input id="hNome" class="inp cad" autocomplete="off" placeholder="Nome e sobrenome">
+    <div id="hRes" style="margin-top:10px"></div>
+    <button class="btn green" id="hGo" style="width:100%;margin-top:6px">Procurar</button>
+    <button class="btn ghost" id="hBack" style="width:100%;margin-top:8px">Voltar</button>`);
+  document.getElementById('hBack').onclick=askHow;
+  const go=async()=>{ const nome=document.getElementById('hNome').value.trim(), res=document.getElementById('hRes');
+    if(nome.length<3){ res.innerHTML='<div class="sub">Escreva o nome.</div>'; return; }
+    res.innerHTML='<div class="sub">Procurando…</div>';
+    let l=[]; try{ l=await gas('buscar',{nome}); }catch(e){ res.innerHTML='<div class="sub">Sem conexão. Tente de novo.</div>'; return; }
+    if(!l.length){ res.innerHTML=`<div class="sub">Não encontramos ninguém com esse nome. Confira com quem mandou o link, ou escreva de outro jeito.</div>`; return; }
+    res.innerHTML=`<div class="sub" style="margin-bottom:6px">É uma destas pessoas?</div>`+l.map(p=>`<button class="btn ghost" data-m="${p.id}" style="display:block;width:100%;text-align:left;margin-bottom:6px"><b>${esc(p.name)}</b>${p.ano?' · '+esc(p.ano):''}${p.dica?`<span class="sub" style="display:block;margin:2px 0 0">${esc(p.dica)}</span>`:''}</button>`).join('');
+    res.querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>confirmLink(rel,b.dataset.m,l.find(x=>x.id===b.dataset.m).name)); };
+  document.getElementById('hGo').onclick=go; document.getElementById('hNome').onkeydown=e=>{ if(e.key==='Enter') go(); };
+}
+// confirma com 2 perguntas que quem é da família sabe responder
+async function confirmLink(rel,to,nome){
+  if(rel==='namorado'||rel==='amigo') return doLink({rel,to},nome);
+  openSheet('<h2>Só um instante…</h2>');
+  let Q=[]; try{ Q=(await gas('previa',{rel,to})).perguntas||[]; }catch(e){}
+  if(!Q.length) return doLink({rel,to},nome);
+  let i=0; const next=()=>{ if(i>=Q.length) return doLink({rel,to},nome);
+    openSheet(`<h2>Ahh, que legal! 😊</h2><div class="sub" style="font-size:17px;margin:14px 0">${esc(Q[i].replace(/^E /,i? 'E ':'Então '))}</div>
+      <button class="btn green" id="qS" style="width:100%;margin-bottom:8px">Sim</button><button class="btn ghost" id="qN" style="width:100%">Não</button>`);
+    document.getElementById('qS').onclick=()=>{ i++; next(); };
+    document.getElementById('qN').onclick=()=>{ openSheet(`<h2>Hum, não bateu 🤔</h2><div class="sub">Talvez seja outra pessoa com nome parecido. Confira com quem mandou o link para você.</div><button class="btn green" id="qB" style="width:100%">Tentar de novo</button>`); document.getElementById('qB').onclick=askHow; }; };
+  next();
+}
+// convite: quem mandou o link já está ligado; a pessoa só diz o que é dela
+function askInvite(de,nome){
+  openSheet(`<h2>${esc(nome)} convidou você 💌</h2><div class="sub">O que ${esc(nome)} é seu?</div>
+    ${opt('filho','👨‍👩‍👧 Meu pai / minha mãe')}${opt('pai','👶 Meu filho / minha filha')}${opt('irmao','👫 Meu irmão / minha irmã')}${opt('conjuge','💍 Meu marido / minha esposa')}${opt('namorado','❤️ Meu namorado / minha namorada')}${opt('amigo','🤝 Meu amigo / minha amiga')}${opt('outro','Outro parente')}`);
+  document.querySelectorAll('[data-h]').forEach(b=>b.onclick=()=>{ const r=b.dataset.h;
+    if(r==='outro'){ LSdel(CONVKEY); return askHow(); }
+    if(r==='pai'){ openSheet(`<h2>Você é…</h2>${opt('M','Pai')}${opt('F','Mãe')}`); document.querySelectorAll('[data-h]').forEach(x=>x.onclick=()=>doLink({rel:'pai',to:de,convite:true,sexo:x.dataset.h},nome)); return; }
+    doLink({rel:r,to:de,convite:true},nome); });
+}
+async function doLink(a,nome){
+  openSheet('<h2>Entrando na árvore…</h2>');
+  try{ await gas('vincular',a); }catch(e){ openSheet(`<h2>Não deu certo</h2><div class="sub">${esc(String(e.message||'Tente de novo.'))}</div><button class="btn green" id="eB" style="width:100%">Voltar</button>`); document.getElementById('eB').onclick=askHow; return; }
+  LSdel(CONVKEY); ME=null; unGate(); await init();
+  const pend=(a.rel==='namorado'||a.rel==='amigo')&&!a.convite;
+  showInvite(pend?`<h2>Pedido enviado ❤️</h2><div class="sub">Vocês vão aparecer ligados quando <b>${esc(nome)}</b> aceitar. Mande o link para ${esc(nome)} entrar no Nossio e confirmar:</div>`
+    : a.rel==='conhecer'?`<h2>Sua árvore começou! 🌱</h2><div class="sub">Agora é só incluir os seus parentes em <b>➕ Incluir</b>. E chame quem você quiser — mande este link:</div>`
+    : `<h2>Pronto! 🎉</h2><div class="sub">Você já está na árvore. Inclua quem estiver faltando em <b>➕ Incluir</b> e chame a família — mande este link:</div>`);
+}
+function inviteUrl(){ const pid=myCad&&myCad.personId||(ME&&ME.cad&&ME.cad.personId); return location.origin+location.pathname+(pid&&!isOwner?'?de='+encodeURIComponent(pid):''); }
+async function showInvite(head){ if(!myCad||!myCad.personId){ try{ ME=null; const m=await meP(); if(m.cad) myCad=m.cad; }catch(e){} }
+  const u=inviteUrl(), msg='Entre no Nossio, uma árvore que liga famílias: '+u;
+  openSheet(`${head||'<h2>Convide alguém 💌</h2><div class="sub">Mande este link pelo WhatsApp. Quem entrar por ele já chega ligado a você.</div>'}
+    <input class="inp cad" id="ivU" readonly value="${esc(u)}" style="margin-top:8px">
+    <a class="btn green" href="https://wa.me/?text=${encodeURIComponent(msg)}" target="_blank" rel="noopener" style="display:block;text-align:center;width:100%;margin-top:10px;text-decoration:none">Enviar pelo WhatsApp</a>
+    <button class="btn ghost" id="ivC" style="width:100%;margin-top:8px">Copiar link</button>
+    <button class="btn ghost" id="ivX" style="width:100%;margin-top:8px">Fechar</button>`);
+  document.getElementById('ivC').onclick=async()=>{ try{ await navigator.clipboard.writeText(u); toast('Link copiado'); }catch(e){ const i=document.getElementById('ivU'); i.select(); document.execCommand('copy'); toast('Link copiado'); } };
+  document.getElementById('ivX').onclick=closeSheet;
+}
+// pedidos de namoro / amizade (e de ver os filhos) esperando resposta
+async function checkPedidos(){ let l=[]; try{ l=await gas('pedidos'); }catch(e){ return; } if(!l.length) return;
+  const p=l[0], T={namorado:'namorado(a)',amigo:'amigo(a)'}, nxt=()=>{ closeSheet(); if(l.length>1) setTimeout(checkPedidos,400); };
+  const ans=async(v,extra)=>{ try{ await gas('responder',Object.assign({de:p.de,para:p.para,aceitar:v},extra||{})); toast(v?'Feito':'Recusado'); }catch(e){ toast(String(e.message||'Não foi possível responder')); } nxt(); };
+  const btns=(s,n)=>`<button class="btn green" id="pS" style="width:100%;margin-bottom:8px">${s}</button><button class="btn ghost" id="pN" style="width:100%;margin-bottom:8px">${n}</button><button class="btn ghost" id="pD" style="width:100%">Depois</button>`;
+  if(p.tipo==='verFilho'){
+    const quem=`<b>${esc(p.nome)}</b>, que está ligado(a) a ${esc(p.paraNome)} no Nossio`;
+    openSheet(`<h2>Posso ver ${p.eProprio?'você':esc(p.filhoNome.split(' ')[0])}? 👀</h2><div class="sub" style="font-size:16px">${quem}, quer ver ${p.eProprio?'você':'<b>'+esc(p.filhoNome)+'</b>'} na árvore (só o nome). Você autoriza?</div>${btns('Autorizo','Não autorizo')}`);
+    document.getElementById('pS').onclick=()=>ans(true,{filho:p.filho}); document.getElementById('pN').onclick=()=>ans(false,{filho:p.filho}); document.getElementById('pD').onclick=closeSheet; return; }
+  openSheet(`<h2>Um pedido para você ${p.tipo==='namorado'?'❤️':'🤝'}</h2><div class="sub" style="font-size:16px"><b>${esc(p.nome)}</b> quer aparecer no Nossio como ${isOwner?(T[p.tipo]||p.tipo)+' de <b>'+esc(p.paraNome)+'</b>':(p.tipo==='namorado'?'seu namorado / sua namorada':'seu amigo / sua amiga')}. Você aceita?</div>
+    <div class="sub" style="font-size:13px">Se aceitar, ${esc(p.nome.split(' ')[0])} passa a ver ${isOwner?'a pessoa':'você'}, ${isOwner?'o cônjuge e os pais':'seu cônjuge e seus pais'} (só os nomes). O resto da família aparece em fichas vazias.</div>${btns('Aceito','Não aceito')}`);
+  document.getElementById('pN').onclick=()=>ans(false); document.getElementById('pD').onclick=closeSheet;
+  document.getElementById('pS').onclick=()=>{ const kids=people.filter(x=>(x.father===p.para||x.mother===p.para)&&!x.masked);
+    if(!kids.length) return ans(true);
+    openSheet(`<h2>E os seus filhos?</h2><div class="sub" style="font-size:16px">${esc(p.nome.split(' ')[0])} pode ver ${isOwner?'os filhos':'seus filhos'} na árvore (só os nomes)?</div><div class="sub" style="font-size:13px">Filho menor também precisa da autorização do outro pai/mãe. Filho maior de idade também precisa autorizar.</div>
+      <button class="btn green" id="fS" style="width:100%;margin-bottom:8px">Pode</button><button class="btn ghost" id="fN" style="width:100%">Ainda não</button>`);
+    document.getElementById('fS').onclick=()=>ans(true,{filhos:true}); document.getElementById('fN').onclick=()=>ans(true); };
 }
 function openCode(){
   openSheet(`<h2>Entrar com código</h2><div class="sub">Quem recebeu um código do Ilacir pode incluir parentes. Digite o código como recebeu.</div>
@@ -799,7 +893,8 @@ function openCode(){
 }
 function openSheet(h){document.getElementById('sheetBody').innerHTML=h;document.getElementById('sheet').classList.add('on');document.getElementById('scrim').classList.add('on')}
 function closeSheet(){document.getElementById('sheet').classList.remove('on');document.getElementById('scrim').classList.remove('on')}
-document.getElementById('scrim').onclick=closeSheet;
+document.getElementById('scrim').onclick=()=>{ if(!document.body.classList.contains('gated')) closeSheet(); };
+document.getElementById('invBtn').onclick=()=>showInvite();
 
 function relationOf(p){
   const root=people[0]; if(!root) return '';
@@ -858,6 +953,11 @@ function describe(p){
 
 function openPerson(id){
   const p=byId(id), F=byId(p.father), M=byId(p.mother);
+  if(p&&(p.masked||p.limited)){ const eu=myCad&&byId(myCad.personId), meuAmigo=eu&&(eu.links||[]).some(l=>l.confirmado&&l.to===p.id);
+    openSheet(`<h2>${p.masked?'Ficha da família':esc(p.name)}</h2><div class="sub">${p.masked?'Esta pessoa está na árvore, mas os dados só aparecem para quem autorizar.':'Você vê só o nome. Os outros dados aparecem só para a família.'}</div>${meuAmigo?`<button class="btn green" id="mkF" style="width:100%;margin-bottom:8px">Pedir para ver os filhos de ${esc(call(p))}</button>`:''}<button class="btn ghost" id="mkX" style="width:100%">Fechar</button>`);
+    document.getElementById('mkX').onclick=closeSheet;
+    const f=document.getElementById('mkF'); if(f) f.onclick=async()=>{ try{ await gas('responder',{de:eu.id,para:p.id,pedeFilhos:true}); toast('Pedido enviado'); }catch(e){ toast(String(e.message||'Não foi possível')); } closeSheet(); };
+    return; }
   const notes=p.notes||[];
   let h=`<div style="text-align:center">${avatar(p,84)}</div>
     <h2 style="text-align:center">${esc(p.name)}</h2>

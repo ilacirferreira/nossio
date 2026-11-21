@@ -5,12 +5,12 @@ function pessoas_() {
   const v = aba_('people').getDataRange().getValues();
   return v.slice(1).filter(x => x[0]).map(x => ({ id: String(x[0]), data: JSON.parse(x[1]) }));
 }
-// todos os ligados por pai, mãe ou casamento; amigo/namorado só depois que o outro aceitar
+// todos os ligados por pai, mãe ou casamento (amigo/namorado aceito tem visão limitada: visaoAmigos_)
 function visiveis_(all, startId) {
   const seen = new Set(); if (!startId) return seen;
   const byId = {}; all.forEach(p => byId[p.id] = p);
   const adj = {}; const add = (a, b) => { if (!a || !b || !byId[a] || !byId[b]) return; (adj[a] = adj[a] || []).push(b); (adj[b] = adj[b] || []).push(a); };
-  all.forEach(p => { add(p.id, p.data.father); add(p.id, p.data.mother); add(p.id, p.data.spouse); (p.data.links || []).forEach(l => { if (l.confirmado) add(p.id, l.to); }); });
+  all.forEach(p => { add(p.id, p.data.father); add(p.id, p.data.mother); add(p.id, p.data.spouse); });
   seen.add(startId); const q = [startId];
   while (q.length) { const x = q.pop(); (adj[x] || []).forEach(y => { if (!seen.has(y)) { seen.add(y); q.push(y); } }); }
   return seen;
@@ -99,15 +99,67 @@ function pedidos_(r) {
       out.push({ de: p.id, nome: p.data.name, tipo: l.type, para: l.to, paraNome: alvo ? alvo.data.name : '' });
     }
   }));
+  // amigo/namorado já aceito pedindo para ver os filhos de quem o aceitou
+  if (eu) { const byId = {}; all.forEach(p => byId[p.id] = p); let cads = null;
+    all.forEach(p => (p.data.links || []).forEach(l => { if (!l.confirmado || !l.pedeFilhos || !byId[l.to]) return; const T = byId[l.to];
+      all.forEach(C => { if (C.data.father !== T.id && C.data.mother !== T.id) return; cads = cads || comCadastro_();
+        const q = quemAutoriza_(byId, T, C, cads) || [], ok = (l.ver || {})[C.id] || [], nao = (l.naoVer || {})[C.id] || [];
+        if (q.includes(eu) && !ok.includes(eu) && !nao.includes(eu)) out.push({ de: p.id, nome: p.data.name, tipo: 'verFilho', para: T.id, paraNome: T.data.name, filho: C.id, filhoNome: C.data.name, eProprio: C.id === eu, menor: menor_(C.data) });
+      }); })); }
   return out;
 }
 function responder_(r, a) {
   const c = cadLinha_(r.code), eu = c && c.data.personId, all = pessoas_();
   const p = all.find(x => x.id === a.de); if (!p) throw new Error('Pedido não encontrado.');
+  if (a.filho) { // autorização para ver um filho
+    const l = (p.data.links || []).find(x => x.to === a.para && x.confirmado); if (!l) throw new Error('Pedido não encontrado.');
+    const byId = {}; all.forEach(x => byId[x.id] = x); const C = byId[a.filho], T = byId[a.para];
+    const q = (C && T && quemAutoriza_(byId, T, C, comCadastro_())) || []; if (!q.includes(eu)) throw new Error('Só os pais (ou o próprio filho, se maior) podem autorizar.');
+    const k = a.aceitar ? 'ver' : 'naoVer'; l[k] = l[k] || {}; l[k][a.filho] = (l[k][a.filho] || []).concat(eu);
+    salvarPessoa_(p.id, p.data); return { ok: true };
+  }
+  if (a.pedeFilhos) { // o amigo pede para ver os filhos de quem o aceitou
+    if (p.id !== eu) throw new Error('Só o próprio amigo pode pedir.');
+    const l = (p.data.links || []).find(x => x.to === a.para && x.confirmado); if (!l) throw new Error('Ainda não aceito.');
+    l.pedeFilhos = true; salvarPessoa_(p.id, p.data); return { ok: true };
+  }
   const l = (p.data.links || []).find(x => x.to === a.para && !x.confirmado);
   if (!l) throw new Error('Pedido não encontrado.');
   if (r.role !== 'owner' && l.to !== eu) throw new Error('Só a própria pessoa pode responder.');
-  if (a.aceitar) { l.confirmado = true; l.confirmadoEm = Date.now(); } else { l.recusado = true; }
+  if (a.aceitar) { l.confirmado = true; l.confirmadoEm = Date.now(); if (a.filhos) { l.pedeFilhos = true; const T = all.find(x => x.id === l.to); all.forEach(C => { if (C.data.father === l.to || C.data.mother === l.to) { l.ver = l.ver || {}; l.ver[C.id] = (l.ver[C.id] || []).concat(eu || l.to); } }); } } else { l.recusado = true; }
   salvarPessoa_(p.id, p.data);
   return { ok: true };
+}
+
+// quem mandou o convite: só o primeiro nome, para a tela de boas-vindas
+function convidou_(a) { const p = pessoas_().find(x => x.id === String(a && a.id)); return p && !p.data.unnamed ? { nome: (p.data.apelido || p.data.name.split(' ')[0]) } : null; }
+// amigo/namorado aceito: vê o globo de quem o aceitou, só com os nomes dela, do cônjuge e dos pais;
+// os filhos só aparecem com autorização (menor: os pais; maior: o pai/mãe e o próprio filho). O resto vem vazio.
+// A família de quem aceitou vê o amigo ao lado, só com o nome.
+function menor_(d) { if (!d || d.deceased) return false; if (!d.birth) return !!d.minor; const b = new Date(d.birth + 'T12:00:00'), t = new Date(); let a = t.getFullYear() - b.getFullYear(); if (t.getMonth() < b.getMonth() || (t.getMonth() === b.getMonth() && t.getDate() < b.getDate())) a--; return a < 18; }
+function comCadastro_() { return new Set(aba_('cadastro').getDataRange().getValues().slice(1).map(x => String(x[11])).filter(Boolean)); }
+// quem precisa autorizar o amigo de T a ver o filho C
+function quemAutoriza_(byId, T, C, cads) {
+  const pais = [C.data.father, C.data.mother].filter(Boolean);
+  if (menor_(C.data)) return pais.filter(id => id === T.id || cads.has(id));
+  return cads.has(C.id) ? [T.id, C.id] : null; // maior sem cadastro ainda não pode autorizar
+}
+function filhoLiberado_(byId, T, C, l, cads) {
+  const q = quemAutoriza_(byId, T, C, cads); if (!q) return false;
+  const ok = ((l.ver || {})[C.id] || []); return q.every(id => ok.includes(id));
+}
+function visaoAmigos_(all, eu, vis) {
+  const byId = {}; all.forEach(p => byId[p.id] = p);
+  const out = {}, put = (p, nivel) => { if (vis.has(p.id) || (out[p.id] && out[p.id].nivel === 'nome')) return; out[p.id] = { p, nivel }; };
+  const limpa = (p, nivel) => { const d = p.data, r = { name: '', sex: d.sex || '', father: d.father || null, mother: d.mother || null, parents: [d.father, d.mother].filter(Boolean), spouse: d.spouse || null, separated: !!d.separated, createdAt: d.createdAt || 0, masked: true };
+    if (nivel === 'nome') { r.name = d.name; r.apelido = d.apelido || ''; r.deceased = !!d.deceased; r.masked = false; r.limited = true; r.links = (d.links || []).filter(l => l.confirmado).map(l => ({ type: l.type, to: l.to, confirmado: true })); }
+    return { id: p.id, data: r }; };
+  const meu = byId[eu]; let cads = null;
+  ((meu && meu.data.links) || []).filter(l => l.confirmado && byId[l.to]).forEach(l => {
+    const T = byId[l.to], perto = new Set([T.id, T.data.spouse, T.data.father, T.data.mother].filter(Boolean));
+    all.forEach(x => { if (x.data.father === T.id || x.data.mother === T.id) { cads = cads || comCadastro_(); if (filhoLiberado_(byId, T, x, l, cads)) perto.add(x.id); } });
+    visiveis_(all, T.id).forEach(id => put(byId[id], perto.has(id) ? 'nome' : 'vazio'));
+  });
+  all.forEach(p => (p.data.links || []).forEach(l => { if (l.confirmado && vis.has(l.to)) put(p, 'nome'); }));
+  return Object.values(out).map(o => limpa(o.p, o.nivel));
 }
