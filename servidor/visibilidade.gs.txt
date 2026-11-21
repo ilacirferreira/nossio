@@ -48,9 +48,10 @@ function vincular_(r, a) {
   if (cad.personId && byId[cad.personId]) throw new Error('Você já está ligado(a) à árvore.');
   if (rel === 'eu' && aba_('cadastro').getDataRange().getValues().slice(1).some(x => String(x[11]) === String(a.to))) throw new Error('Essa pessoa já tem cadastro próprio.');
   let meId;
+  const pendente = ['eu', 'filho', 'irmao', 'conjuge'].includes(rel) && !a.convite;
+  if (pendente) cad.pend = { to: a.to, toNome: to.name, rel, em: Date.now(), confirmadoPor: [], indicados: [] };
   if (rel === 'eu') {
-    meId = a.to; const me = byId[meId]; me.provisional = false; if (cad.nascimento && !me.birth) me.birth = cad.nascimento;
-    me.updatedBy = r.uid; me.updatedByName = cad.nome.split(' ')[0]; me.updatedAt = Date.now(); salvarPessoa_(meId, me);
+    meId = a.to; if (!pendente) assumir_(meId, cad, r);
   } else {
     meId = novoId_();
     const me = { name: cad.nome, sex: a.sexo || '', father: null, mother: null, parents: [], spouse: null, photo: null, birth: cad.nascimento || '', deceased: false, death: '', apelido: '', provisional: true, createdAt: Date.now(), createdBy: r.uid, createdByName: cad.nome.split(' ')[0] };
@@ -59,7 +60,7 @@ function vincular_(r, a) {
       const sp = to.spouse && byId[to.spouse];
       if (sp) { if (sp.sex === 'F' && !me.mother) me.mother = to.spouse; else if (!me.father) me.father = to.spouse; }
     } else if (rel === 'irmao') { me.father = to.father || null; me.mother = to.mother || null; }
-    else if (rel === 'conjuge') { if (to.spouse) throw new Error(to.name + ' já tem cônjuge cadastrado.'); me.spouse = a.to; to.spouse = meId; salvarPessoa_(a.to, to); }
+    else if (rel === 'conjuge') { if (to.spouse) throw new Error(to.name + ' já tem cônjuge cadastrado.'); me.spouse = a.to; if (!pendente) { to.spouse = meId; salvarPessoa_(a.to, to); } }
     else if (rel === 'pai') {
       if (cad.sexo === 'F' || a.sexo === 'F') { if (to.mother) throw new Error(to.name + ' já tem mãe cadastrada.'); to.mother = meId; me.sex = 'F'; }
       else { if (to.father) throw new Error(to.name + ' já tem pai cadastrado.'); to.father = meId; me.sex = me.sex || 'M'; }
@@ -92,7 +93,7 @@ function previa_(a) {
 // pedidos de namorado(a)/amigo(a) esperando a resposta da pessoa (ou do dono)
 function pedidos_(r) {
   const all = pessoas_(), c = cadLinha_(r.code), eu = c && c.data.personId;
-  const out = [];
+  const out = pedidosFamilia_(eu, r.role === 'owner');
   all.forEach(p => (p.data.links || []).forEach(l => {
     if (!l.confirmado && !l.recusado && (r.role === 'owner' || l.to === eu)) {
       const alvo = all.find(x => x.id === l.to);
@@ -109,6 +110,7 @@ function pedidos_(r) {
   return out;
 }
 function responder_(r, a) {
+  if (a.familia) return responderFamilia_(r, a);
   const c = cadLinha_(r.code), eu = c && c.data.personId, all = pessoas_();
   const p = all.find(x => x.id === a.de); if (!p) throw new Error('Pedido não encontrado.');
   if (a.filho) { // autorização para ver um filho
@@ -162,4 +164,115 @@ function visaoAmigos_(all, eu, vis) {
   });
   all.forEach(p => (p.data.links || []).forEach(l => { if (l.confirmado && vis.has(l.to)) put(p, 'nome'); }));
   return Object.values(out).map(o => limpa(o.p, o.nivel));
+}
+
+// ---------- confirmação da família e privacidade (prioridade total: quem não quer ser visto some na hora) ----------
+function assumir_(id, cad, r) {
+  const p = pessoas_().find(x => x.id === id); if (!p) return; const me = p.data;
+  me.provisional = false; if (cad.nascimento && !me.birth) me.birth = cad.nascimento;
+  me.updatedBy = r.uid; me.updatedByName = cad.nome.split(' ')[0]; me.updatedAt = Date.now(); salvarPessoa_(id, me);
+}
+function cadastros_() { return aba_('cadastro').getDataRange().getValues().slice(1).map((x, i) => ({ row: i + 2, code: x[0], personId: String(x[11] || ''), data: JSON.parse(x[13] || '{}') })).filter(c => c.code); }
+function salvarCad_(c) { aba_('cadastro').getRange(c.row, 14).setValue(JSON.stringify(c.data)); }
+// casa = pais, filhos, irmãos e cônjuge
+function casa_(all, id) {
+  const byId = {}; all.forEach(p => byId[p.id] = p.data); const d = byId[id] || {}, out = new Set([d.father, d.mother, d.spouse].filter(Boolean));
+  all.forEach(p => { const x = p.data; if (x.father === id || x.mother === id || x.spouse === id) out.add(p.id); if (p.id !== id && ((d.father && x.father === d.father) || (d.mother && x.mother === d.mother))) out.add(p.id); });
+  return out;
+}
+// essa pessoa escolheu não ser vista por quem está olhando?
+function escondido_(all, p, eu) {
+  const d = p.data; if (p.id === eu) return false;
+  if (d.saiu) return true;
+  if ((d.bloqueia || []).includes(eu)) return true;
+  if (d.oculto === 'casa' && !casa_(all, p.id).has(eu)) return true;
+  return false;
+}
+const vazia_ = p => { const d = p.data; return { id: p.id, data: { name: '', sex: '', father: d.father || null, mother: d.mother || null, parents: [d.father, d.mother].filter(Boolean), spouse: d.spouse || null, createdAt: d.createdAt || 0, masked: true } }; };
+// o que cada pessoa vê; dono vê tudo
+function lista_(r) {
+  const all = pessoas_(); if (r.role === 'owner') return all;
+  const c = cadLinha_(r.code), cad = c && c.data, eu = cad && cad.personId, vis = visiveis_(all, eu);
+  if (cad && cad.pend) { // família ainda não confirmou: tudo vazio, menos ele mesmo
+    const meu = all.find(p => p.id === eu);
+    return all.filter(p => vis.has(p.id)).map(p => p.id === eu && cad.pend.rel !== 'eu' ? p : (p.id === eu ? { id: p.id, data: Object.assign({}, vazia_(p).data, { name: cad.nome, masked: false, limited: true }) } : vazia_(p)));
+  }
+  const out = all.filter(p => vis.has(p.id)).map(p => escondido_(all, p, eu) ? vazia_(p) : p);
+  return out.concat(visaoAmigos_(all, eu, vis).map(x => { const p = all.find(y => y.id === x.id); return p && escondido_(all, p, eu) ? vazia_(p) : x; }));
+}
+// quem não é o dono só altera quem enxerga com nome
+function checaSet_(r, a) {
+  if (r.role === 'owner') return;
+  const all = pessoas_(), c = cadLinha_(r.code); if (c && c.data.pend) throw new Error('Aguarde a família confirmar você.');
+  const ok = new Set(lista_(r).filter(p => !p.data.masked && !p.data.limited).map(p => p.id));
+  const antigo = all.find(p => p.id === String(a.id));
+  if (antigo && !ok.has(antigo.id)) throw new Error('Sem permissão para alterar esta pessoa.');
+  const d = a.data || {};
+  [d.father, d.mother, d.spouse].forEach(x => { if (x && all.some(p => p.id === x) && !ok.has(x)) throw new Error('Sem permissão para ligar a esta pessoa.'); });
+  // campos que só o servidor mexe
+  ['links', 'bloqueia', 'oculto', 'saiu'].forEach(k => { if (antigo && antigo.data[k] !== undefined) d[k] = antigo.data[k]; else delete d[k]; });
+}
+// quem entrou indica mais parentes (até 3) para confirmar; só diz quantos pedidos foram enviados
+function indicar_(r, a) {
+  const c = cadLinha_(r.code); if (!c || !c.data.pend) throw new Error('Nada a confirmar.');
+  const pend = c.data.pend; if ((pend.indicados || []).length >= 3) throw new Error('Você já indicou 3 pessoas.');
+  const all = pessoas_(), comp = visiveis_(all, pend.to), cads = new Set(cadastros_().map(x => x.personId));
+  const achou = buscar_(all.filter(p => comp.has(p.id) && cads.has(p.id) && p.id !== c.data.personId), a.nome).slice(0, 1);
+  if (achou.length) { pend.indicados = (pend.indicados || []).concat(achou[0].id).slice(0, 3); salvarCad_({ row: c.row, data: c.data }); }
+  return { enviados: achou.length, restam: 3 - (pend.indicados || []).length };
+}
+const REL_ = { filho: 'filho(a)', irmao: 'irmão(ã)', conjuge: 'marido/esposa', eu: 'a própria pessoa' };
+function pedidosFamilia_(eu, owner) {
+  const all = pessoas_(), byId = {}; all.forEach(p => byId[p.id] = p.data); const out = [];
+  cadastros_().forEach(c => { const pd = c.data.pend; if (!pd) return;
+    const X = byId[pd.to]; if (!X) return;
+    const ehX = pd.to === eu, ehInd = (pd.indicados || []).includes(eu);
+    if (!(ehX || ehInd || owner)) return;
+    out.push({ tipo: 'familia', de: c.personId, nome: c.data.nome, rel: pd.rel, para: pd.to, paraNome: X.name, sou: ehX ? 'alvo' : ehInd ? 'indicado' : 'dono' });
+  });
+  return out;
+}
+function responderFamilia_(r, a) {
+  const me = cadLinha_(r.code), eu = me && me.data.personId, owner = r.role === 'owner';
+  const c = cadastros_().find(x => x.personId === String(a.de) && x.data.pend); if (!c) throw new Error('Pedido não encontrado.');
+  const pd = c.data.pend, ehX = pd.to === eu, ehInd = (pd.indicados || []).includes(eu);
+  if (!(ehX || ehInd || owner)) throw new Error('Sem permissão.');
+  const all = pessoas_(), byId = {}; all.forEach(p => byId[p.id] = p);
+  if (a.aceitar) {
+    const X = byId[pd.to];
+    if (pd.rel === 'conjuge' && X && !X.data.spouse) { X.data.spouse = c.personId; salvarPessoa_(X.id, X.data); }
+    if (pd.rel === 'eu') assumir_(c.personId, c.data, { uid: c.code });
+    const novo = byId[c.personId]; if (novo && pd.rel !== 'eu') { novo.data.provisional = false; novo.data.confirmadoPor = eu || 'dono'; salvarPessoa_(novo.id, novo.data); }
+    delete c.data.pend; c.data.confirmadoPor = eu || 'dono'; salvarCad_(c);
+  } else if (ehX || owner) { // a pessoa indicada diz que não é: desfaz a ligação
+    const P = byId[c.personId];
+    if (pd.rel === 'eu') { c.data.personId = null; aba_('cadastro').getRange(c.row, 12).setValue(''); }
+    else if (P) { P.data.father = P.data.mother = P.data.spouse = null; P.data.parents = []; salvarPessoa_(P.id, P.data); }
+    delete c.data.pend; c.data.recusado = Date.now(); salvarCad_(c);
+  } else { // um parente indicado não conhece: some da visão dele
+    const Me = byId[eu]; if (Me) { Me.data.bloqueia = (Me.data.bloqueia || []).concat(c.personId); salvarPessoa_(eu, Me.data); }
+    pd.indicados = pd.indicados.filter(x => x !== eu); salvarCad_(c);
+  }
+  return { ok: true };
+}
+// privacidade de cada um: vale na hora, sem perguntas
+function privacidade_(r, a) {
+  const c = cadLinha_(r.code), eu = c && c.data.personId; if (!eu) throw new Error('Você ainda não está na árvore.');
+  const p = pessoas_().find(x => x.id === eu); if (!p) throw new Error('Ficha não encontrada.'); const d = p.data;
+  if (a.oculto !== undefined) d.oculto = a.oculto === 'casa' ? 'casa' : '';
+  if (a.bloquear) d.bloqueia = [...new Set((d.bloqueia || []).concat(String(a.bloquear)))];
+  if (a.desbloquear) d.bloqueia = (d.bloqueia || []).filter(x => x !== String(a.desbloquear));
+  salvarPessoa_(eu, d); return { oculto: d.oculto || '', bloqueia: d.bloqueia || [] };
+}
+function minhaPrivacidade_(r) {
+  const c = cadLinha_(r.code), eu = c && c.data.personId, all = pessoas_(), p = all.find(x => x.id === eu);
+  if (!p) return { oculto: '', bloqueados: [] };
+  return { oculto: p.data.oculto || '', bloqueados: (p.data.bloqueia || []).map(id => { const x = all.find(y => y.id === id); return { id, nome: x ? x.data.name : '?' }; }) };
+}
+// sair: a ficha fica vazia para todos (só o dono vê) e o cadastro é apagado
+function sair_(r) {
+  const c = cadLinha_(r.code); if (!c) return { ok: true };
+  const eu = c.data.personId, p = eu && pessoas_().find(x => x.id === eu);
+  if (p) { p.data.saiu = Date.now(); p.data.links = []; salvarPessoa_(eu, p.data); }
+  aba_('cadastro').deleteRow(c.row); return { ok: true };
 }
