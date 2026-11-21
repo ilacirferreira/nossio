@@ -65,3 +65,19 @@ function vincular_(r, a) {
   cad.personId = meId; const s = aba_('cadastro'); s.getRange(c.row, 12).setValue(meId); s.getRange(c.row, 14).setValue(JSON.stringify(cad));
   return { personId: meId };
 }
+// confirmação: antes de ligar, faz 2 perguntas de parentesco que quem é da família sabe responder
+function previa_(a) {
+  const all = pessoas_(), byId = {}; all.forEach(p => byId[p.id] = p.data);
+  const X = byId[a.to]; if (!X) throw new Error('Pessoa não encontrada.');
+  const nm = id => { const p = byId[id]; return p && !p.data && !p.unnamed ? p.name : (p && !p.unnamed ? p.name : ''); };
+  const kids = id => all.filter(p => (p.data.father === id || p.data.mother === id) && !p.data.unnamed).map(p => p.data.name);
+  const sibs = d => all.filter(p => p.data !== d && !p.data.unnamed && ((d.father && p.data.father === d.father) || (d.mother && p.data.mother === d.mother))).map(p => p.data.name);
+  const pais = d => [d.father, d.mother].map(id => byId[id]).filter(p => p && !p.unnamed).map(p => p.name);
+  const Q = [], put = t => { if (t && Q.length < 2 && !Q.includes(t)) Q.push(t); };
+  const sp = X.spouse && byId[X.spouse] && !byId[X.spouse].unnamed ? byId[X.spouse].name : '';
+  if (a.rel === 'filho') { kids(a.to).slice(0, 1).forEach(k => put('Então você é irmão/irmã de ' + k + '?')); pais(X).slice(0, 1).forEach(n => put('E é neto(a) de ' + n + '?')); if (sp) put('Sua mãe/seu pai é ' + sp + '?'); sibs(X).slice(0, 1).forEach(n => put('E ' + n + ' é seu tio/sua tia?')); }
+  else if (a.rel === 'irmao') { pais(X).forEach(n => put('Então você é filho(a) de ' + n + '?')); sibs(X).slice(0, 1).forEach(n => put('E também é irmão/irmã de ' + n + '?')); }
+  else if (a.rel === 'conjuge') { kids(a.to).slice(0, 1).forEach(k => put('Então ' + k + ' é seu filho/sua filha?')); pais(X).slice(0, 1).forEach(n => put('E ' + n + ' é seu sogro/sua sogra?')); sibs(X).slice(0, 1).forEach(n => put('E ' + n + ' é seu cunhado/sua cunhada?')); }
+  else if (a.rel === 'eu') { pais(X).slice(0, 1).forEach(n => put('Você é filho(a) de ' + n + '?')); sibs(X).slice(0, 1).forEach(n => put('E é irmão/irmã de ' + n + '?')); if (sp) put('É casado(a) com ' + sp + '?'); kids(a.to).slice(0, 1).forEach(k => put(k + ' é seu filho/sua filha?')); }
+  return { perguntas: Q };
+}
