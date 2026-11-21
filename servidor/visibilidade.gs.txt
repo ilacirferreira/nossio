@@ -45,6 +45,8 @@ function vincular_(r, a) {
   const cad = c.data, all = pessoas_(), byId = {}; all.forEach(p => byId[p.id] = p.data);
   const rel = a.rel, to = a.to ? byId[a.to] : null;
   if (rel !== 'conhecer' && !to) throw new Error('Pessoa não encontrada.');
+  if (cad.personId && byId[cad.personId]) throw new Error('Você já está ligado(a) à árvore.');
+  if (rel === 'eu' && aba_('cadastro').getDataRange().getValues().slice(1).some(x => String(x[11]) === String(a.to))) throw new Error('Essa pessoa já tem cadastro próprio.');
   let meId;
   if (rel === 'eu') {
     meId = a.to; const me = byId[meId]; me.provisional = false; if (cad.nascimento && !me.birth) me.birth = cad.nascimento;
