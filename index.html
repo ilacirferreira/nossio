@@ -113,6 +113,9 @@ a.pl{color:var(--green);font-weight:600;text-decoration:none;border-bottom:1px d
 @media (max-width:620px){header{padding:8px 10px}.hTop{gap:6px}h1{font-size:19px}.tag{display:none}.vSeg button{padding:6px 9px;font-size:16px}.vSeg .lg{display:none}.hBtns{gap:4px}.hb.big{height:34px;padding:0 7px}.hb.big b{font-size:13px}.hb.big .lg{display:none}}
 @media (max-width:440px){.hb.big .lg2{display:none}}
 @media (max-width:360px){.hb.big b{font-size:12px}.hb.big{padding:0 5px}}
+body.gated header,body.gated #wrap,body.gated #status,body.gated .zoomCtl,body.gated #zoomCtl{visibility:hidden}
+body.gated #scrim{background:#f5efe3;opacity:1;pointer-events:none}
+body.gated .sheet{max-height:100vh;height:100vh;border-radius:0}
 </style>
 </head>
 <body>
@@ -134,7 +137,7 @@ a.pl{color:var(--green);font-weight:600;text-decoration:none;border-bottom:1px d
 /* ---------- Nossio fora do Claude: dados no Google (Apps Script) ---------- */
 window.NOSSIO_GAS=true;
 // versão da tela: se o celular estiver com uma cópia antiga guardada, busca a nova e recarrega sozinho (uma vez)
-const APPVER='v20261117-0420';
+const APPVER='v20261121-1200';
 (async()=>{ try{ const t=await fetch(location.pathname+'?nv='+Date.now(),{cache:'no-store'}).then(r=>r.text()); const m=t.match(/APPVER='([^']+)'/);
   if(m&&m[1]!==APPVER&&sessionStorage.getItem('nossio-rl')!==m[1]){ sessionStorage.setItem('nossio-rl',m[1]); location.replace(location.pathname+'?nv='+m[1]+location.hash); } }catch(e){} })();
 const CODEKEY='nossio-code'; let MEMCODE='';
@@ -283,12 +286,14 @@ async function init(){
     wantWrite=true; canWrite=false;
     try{ myId = await user.id(); const d = await db.collection('cadastro').doc(myId).get(); if(d&&d.exists){ myCad=d.data(); canWrite=true; } }catch(e){}
     showCadBar();
+    // quem recebeu o link e ainda não preencheu o cadastro não vê nada da árvore
+    if(window.NOSSIO_GAS && !myCad){ showGate(); return; }
   }
   const cb=document.getElementById('codeBtn'); if(cb){ cb.hidden=!(window.NOSSIO_GAS && !isOwner && !wantWrite); cb.onclick=openCode; }
   setStatus('Conectando…');
   const timer = setTimeout(()=>setStatus('Os dados ainda não chegaram — verifique a internet.'),10000);
   if(window.__unsub) window.__unsub();
-  window.__unsub = col.onSnapshot(snap=>{
+  window.__unsub = col.onSnapshot(snap=>{ if(window.__askWho) setTimeout(()=>{ if(window.__askWho) askWho(); },600);
     if(!snap.metadata.fromCache){clearTimeout(timer); if(!fixedNames){fixedNames=true; setTimeout(fixOldNames,0)}}
     people = snap.docs.map(d=>Object.assign({id:d.id},JSON.parse(JSON.stringify(d.data()))));
     people.sort((a,b)=>(a.createdAt||0)-(b.createdAt||0)); normalize();
@@ -674,7 +679,7 @@ function openCad(){
 }
 function openCadForm(pre){
   const c=myCad||{}, v=k=>esc(c[k]||(k==='nome'&&pre&&!pre.unnamed?pre.name:''));
-  const novo=!myCad&&cadWho&&cadWho.novo;
+  const novo=!myCad&&cadWho&&cadWho.novo; const pedeSexo=!myCad;
   openSheet(`<h2>${myCad?'Seu cadastro':'Passo 2 de 2 — Seus dados'}</h2><div class="sub">Pedimos estes dados só para ter certeza de que cada pessoa é única e evitar cadastros repetidos ou inventados. O CPF fica guardado em separado: <b>só o administrador vê</b>, não aparece na árvore.</div>
   <label class="lbl">Nome completo *</label><input id="cNome" class="inp cad" value="${v('nome')}" autocomplete="name">
   <label class="lbl">CPF *</label><input id="cCpf" class="inp cad" inputmode="numeric" value="${v('cpf')}" placeholder="000.000.000-00">
@@ -682,16 +687,20 @@ function openCadForm(pre){
   <label class="lbl">Nome completo da mãe *</label><input id="cMae" class="inp cad" value="${v('mae')}">
   <label class="lbl">Nome completo do pai *</label><input id="cPai" class="inp cad" value="${v('pai')}" ${c.paiNaoConsta?'disabled':''}>
   <label class="check" style="margin-top:6px"><input type="checkbox" id="cPaiNC" ${c.paiNaoConsta?'checked':''}> Não consta / prefiro não informar</label>
+  ${pedeSexo?`<label class="lbl">Sexo *</label><select id="cSexo" class="inp cad"><option value="">— escolha —</option><option value="F">Feminino</option><option value="M">Masculino</option></select>`:''}
+  <button type="button" class="btn ghost" id="cMais" style="width:100%;margin-top:10px">+ Quer contar mais sobre você? (opcional)</button>
+  <div id="cOpt" style="display:none">
   <label class="lbl">Conhecido(a) como (opcional)</label><input id="cApe" class="inp cad" value="${v('apelido')}">
   <label class="lbl">Data de nascimento (opcional)</label><input id="cNasc" class="inp cad" type="date" value="${v('nascimento')}">
   <label class="lbl">Cidade onde nasceu (opcional)</label><input id="cNat" class="inp cad" value="${v('naturalidade')}">
   <label class="lbl">Escolas onde estudou (opcional)</label><input id="cEsc" class="inp cad" value="${v('escolas')}" placeholder="Separe por vírgula">
   <label class="lbl">Onde trabalha / profissão (opcional)</label><input id="cTrab" class="inp cad" value="${v('trabalho')}">
-  ${novo?`<label class="lbl">Sexo *</label><select id="cSexo" class="inp cad"><option value="">— escolha —</option><option value="F">Feminino</option><option value="M">Masculino</option></select>`:''}
+  </div>
   <label class="check" style="margin-top:12px"><input type="checkbox" id="cOk" ${c.aceite?'checked':''}> Concordo que estes dados sejam usados só para me identificar no Nossio.</label>
   <div id="cErr" style="color:var(--red);font-size:14px;min-height:18px"></div>
   <button class="btn green" id="cSave" style="width:100%">Salvar cadastro</button>`);
   const cpf=document.getElementById('cCpf'); cpf.oninput=()=>{cpf.value=fmtCpf(cpf.value)};
+  document.getElementById('cMais').onclick=e=>{ document.getElementById('cOpt').style.display=''; e.target.remove(); };
   const nc=document.getElementById('cPaiNC'); nc.onchange=()=>{const e=document.getElementById('cPai'); e.disabled=nc.checked; if(nc.checked) e.value='';};
   document.getElementById('cSave').onclick=async()=>{
     const g=id=>document.getElementById(id).value.trim(), err=t=>{document.getElementById('cErr').textContent=t};
@@ -703,13 +712,20 @@ function openCadForm(pre){
     if(!full(g('cMae'))) return err('Escreva o nome completo da mãe.');
     const paiNC=document.getElementById('cPaiNC').checked;
     if(!paiNC && !full(g('cPai'))) return err('Escreva o nome completo do pai, ou marque "Não consta".');
-    const sexo=novo?g('cSexo'):''; if(novo&&!sexo) return err('Escolha o sexo.');
+    const sexo=pedeSexo?g('cSexo'):''; if(pedeSexo&&!sexo) return err('Escolha o sexo.');
     if(!document.getElementById('cOk').checked) return err('Marque a concordância para continuar.');
-    const data={nome,cpf:fmtCpf(g('cCpf')),cidade:g('cCid'),apelido:g('cApe'),nascimento:g('cNasc'),naturalidade:g('cNat'),mae:fmtName(g('cMae')),pai:paiNC?'':fmtName(g('cPai')),paiNaoConsta:paiNC,escolas:g('cEsc'),trabalho:g('cTrab'),personId:(c.personId||(cadWho&&cadWho.personId)||null),aceite:true,atualizado:Date.now()};
+    const data={nome,cpf:fmtCpf(g('cCpf')),cidade:g('cCid'),apelido:g('cApe'),nascimento:g('cNasc'),naturalidade:g('cNat'),mae:fmtName(g('cMae')),pai:paiNC?'':fmtName(g('cPai')),paiNaoConsta:paiNC,escolas:g('cEsc'),trabalho:g('cTrab'),personId:(c.personId||(cadWho&&cadWho.personId)||null),aceite:true,sexo:sexo,atualizado:Date.now()};
     try{ await db.collection('cadastro').doc(myId).set(data); myCad=data; canWrite=true;
-      // liga quem se cadastrou à árvore
-      if(cadWho&&cadWho.personId){ const me=byId(cadWho.personId); if(me){ me.provisional=false; if(data.apelido&&!me.apelido) me.apelido=data.apelido; await savePerson(me); } }
-      else if(novo){ const to=byId(cadWho.to), np={id:newId(),name:nome,sex:sexo,father:null,mother:null,parents:[],spouse:null,photo:null,createdAt:Date.now(),createdBy:myId,createdByName:myName(),birth:data.nascimento||'',deceased:false,death:'',apelido:data.apelido||''};
+      if(document.body.classList.contains('gated')){ myCad.sexo=sexo; unGate(); init(); return; }
+      await applyLink(data,sexo);
+    }
+    catch(e){ err(e&&/CPF/.test(e.message||'')?String(e.message).replace(/^.*?:\s*/,''):'Não foi possível salvar agora. Tente de novo.'); }
+  };
+}
+
+async function applyLink(data,sexo){
+      if(cadWho&&cadWho.personId){ const me=byId(cadWho.personId); if(me){ me.provisional=false; if(data.nascimento&&!me.birth) me.birth=data.nascimento; if(myId){ me.updatedBy=myId; } data.personId=me.id; try{ await db.collection('cadastro').doc(myId).set(data); }catch(e){} if(data.apelido&&!me.apelido) me.apelido=data.apelido; await savePerson(me); } }
+      else if(cadWho&&cadWho.novo){ const nome=data.nome, to=byId(cadWho.to), np={id:newId(),name:nome,sex:sexo,father:null,mother:null,parents:[],spouse:null,photo:null,createdAt:Date.now(),createdBy:myId,createdByName:myName(),birth:data.nascimento||'',deceased:false,death:'',apelido:data.apelido||''};
         const touched=[np];
         if(to&&cadWho.rel==='filho'){ if(to.sex==='F') np.mother=to.id; else np.father=to.id; const S=byId(to.spouse); if(S){ if(S.sex==='F'&&!np.mother) np.mother=S.id; else if(!np.father) np.father=S.id; } }
         if(to&&cadWho.rel==='irmao'){ np.father=to.father; np.mother=to.mother; }
@@ -718,9 +734,57 @@ function openCadForm(pre){
         for(const t of touched) await savePerson(t); await db.collection('cadastro').doc(myId).set(data); }
       cadWho=null; showCadBar(); closeSheet(); render();
       openSheet(`<h2>Pronto! 🎉</h2><div class="sub">Você já está na árvore. Agora é só tocar em <b>➕ Incluir pessoa</b>, lá em cima, para incluir os parentes que estiverem faltando — filhos, irmãos, cônjuges, pais.</div><button class="btn green" id="okGo" style="width:100%">Entendi</button>`);
-      document.getElementById('okGo').onclick=closeSheet; }
-    catch(e){ err(e&&/CPF/.test(e.message||'')?String(e.message).replace(/^.*?:\s*/,''):'Não foi possível salvar agora. Tente de novo.'); }
-  };
+      document.getElementById('okGo').onclick=closeSheet;
+}
+/* ---------- portão: antes de ver a árvore, a pessoa preenche o cadastro ---------- */
+function showGate(){ document.body.classList.add('gated'); setStatus(''); cadWho=null;
+  openSheet(`<h1 style="font-size:34px;margin:4px 0 6px">Nossi<span>o</span></h1>
+  <div class="sub" style="font-size:15px">Uma grande árvore que liga famílias. Conte quem você é para entrar — leva 30 segundos.</div>
+  <label class="lbl gq">Qual o seu nome completo?</label><input id="gNome" class="inp cad" autocomplete="name">
+  <label class="lbl gq">Qual a sua data de nascimento?</label><input id="gNasc" class="inp cad" type="date">
+  <label class="lbl gq">Em que cidade você nasceu?</label><input id="gNat" class="inp cad" placeholder="Ex.: Montes Claros - MG">
+  <label class="lbl gq">Em que cidade você mora?</label><input id="gCid" class="inp cad" placeholder="Ex.: Belo Horizonte - MG">
+  <div id="gErr" style="color:var(--red);font-size:14px;min-height:18px;margin-top:8px"></div>
+  <button class="btn green" id="gGo" style="width:100%;font-size:17px;padding:15px">Entrar</button>`);
+  document.getElementById('gGo').onclick=async()=>{ const g=id=>document.getElementById(id).value.trim(), err=t=>document.getElementById('gErr').textContent=t;
+    const nome=fmtName(g('gNome').replace(/\s+/g,' '));
+    if(nome.split(' ').filter(w=>w.length>1).length<2) return err('Escreva o nome completo (nome e sobrenome).');
+    if(!g('gNasc')) return err('Informe a data de nascimento.');
+    if(g('gNat').length<2) return err('Informe a cidade onde você nasceu.');
+    if(g('gCid').length<2) return err('Informe a cidade onde você mora.');
+    const btn=document.getElementById('gGo'); btn.disabled=true; btn.textContent='Entrando…';
+    const data={nome,cpf:'',cidade:g('gCid'),naturalidade:g('gNat'),nascimento:g('gNasc'),mae:'',pai:'',apelido:'',aceite:true,sexo:'',personId:null,atualizado:Date.now()};
+    try{ await db.collection('cadastro').doc(myId).set(data); myCad=data; unGate(); init(); }
+    catch(e){ btn.disabled=false; btn.textContent='Entrar'; err('Não foi possível entrar agora. Tente de novo.'); } };
+}
+function unGate(){ document.body.classList.remove('gated'); closeSheet(); window.__askWho=true; }
+// tela 2: as 2 ou 3 pessoas da árvore mais parecidas com o nome de quem entrou
+function whoCandidates(){ const n=nrm(myCad&&myCad.nome), first=n.split(' ')[0], yr=year(myCad&&myCad.nascimento);
+  return people.filter(p=>!p.unnamed).map(p=>{ const pn=nrm(p.name), pf=pn.split(' ')[0], ap=nrm(p.apelido);
+      let sc=Math.max(jw(n,pn)*0.9, jw(first,pf)*0.8+(pn.split(' ').slice(1).some(w=>n.includes(w))?0.15:0), ap?jw(first,ap)*0.8:0);
+      const py=year(p.birth); if(yr&&py) sc+=Math.abs(yr-py)<=1?0.1:-0.3;
+      return {p,sc}; }).filter(x=>x.sc>0.72).sort((a,b)=>b.sc-a.sc).slice(0,3).map(x=>x.p); }
+function askWho(){ window.__askWho=false; const cands=whoCandidates();
+  const ctx=p=>{ const F=byId(p.father),M=byId(p.mother),S=byId(p.spouse), sib=siblingsOf(p).filter(x=>x!==p).slice(0,2); const b=[];
+    if(F||M) b.push(g(p,'filho','filha')+' de '+[F,M].filter(Boolean).map(x=>x.name).join(' e ')); if(sib.length) b.push(g(p,'irmão','irmã')+' de '+sib.map(call).join(' e ')); if(S) b.push((p.sex==='F'?'esposa':'marido')+' de '+call(S)); return b.join(' · '); };
+  if(!cands.length) return askRelation();
+  let sel=null;
+  openSheet(`<h2>Encontramos alguém parecido 👀</h2><div class="sub">É você? Toque na pessoa certa.</div>
+    ${cands.map(p=>`<button class="btn ghost wc" data-w="${p.id}" style="display:flex;gap:12px;align-items:center;width:100%;text-align:left;margin-bottom:8px;padding:12px"><span class="av" style="width:40px;height:40px;border-radius:50%;background:#e8e0d0;display:flex;align-items:center;justify-content:center;font-family:Fraunces,serif;flex:none">${esc((p.name||'?').trim().charAt(0).toUpperCase())}</span><span><b>${esc(p.name)}</b><span class="sub" style="display:block;margin:2px 0 0">${esc(ctx(p))}</span></span></button>`).join('')}
+    <button class="btn ghost" id="wNone" style="width:100%;border-style:dashed;margin-top:4px">Não sou nenhuma dessas — sou parente de alguém da árvore</button>
+    <button class="btn green" id="wGo" style="width:100%;margin-top:12px;font-size:17px;padding:14px" disabled>Sou eu — entrar</button>`);
+  document.querySelectorAll('.wc').forEach(b=>b.onclick=()=>{ sel=b.dataset.w; document.querySelectorAll('.wc').forEach(x=>{x.style.background='';x.style.borderColor='';}); b.style.background='#e3f1e8'; b.style.borderColor='var(--green,#2e6b4f)'; document.getElementById('wGo').disabled=false; });
+  document.getElementById('wNone').onclick=askRelation;
+  document.getElementById('wGo').onclick=()=>{ if(!sel) return; cadWho={personId:sel}; applyLink(myCad,''); };
+}
+// tela 3: não é ninguém da lista — de quem é parente
+function askRelation(){
+  openSheet(`<h2>De quem você é parente?</h2><div class="sub">Escolha uma opção e procure a pessoa.</div>
+    <button class="btn ghost" data-r="filho" style="display:block;width:100%;margin-bottom:8px;text-align:left">👶 Sou filho(a) de…</button>
+    <button class="btn ghost" data-r="conjuge" style="display:block;width:100%;margin-bottom:8px;text-align:left">💍 Sou marido / esposa de…</button>
+    <button class="btn ghost" data-r="irmao" style="display:block;width:100%;text-align:left">👫 Sou irmão / irmã de…</button>`);
+  const T={filho:'De quem você é filho(a)?',conjuge:'Com quem você é casado(a)?',irmao:'De quem você é irmão / irmã?'};
+  document.querySelectorAll('[data-r]').forEach(b=>b.onclick=()=>pickPerson(T[b.dataset.r],'Procure o nome e toque nele.',p=>{ cadWho={novo:true,rel:b.dataset.r,to:p.id}; applyLink(myCad,''); }));
 }
 function openCode(){
   openSheet(`<h2>Entrar com código</h2><div class="sub">Quem recebeu um código do Ilacir pode incluir parentes. Digite o código como recebeu.</div>
