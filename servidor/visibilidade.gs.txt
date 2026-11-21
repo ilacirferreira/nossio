@@ -5,12 +5,12 @@ function pessoas_() {
   const v = aba_('people').getDataRange().getValues();
   return v.slice(1).filter(x => x[0]).map(x => ({ id: String(x[0]), data: JSON.parse(x[1]) }));
 }
-// todos os ligados por pai, mãe ou casamento (amigo/namorado não abre a árvore do outro)
+// todos os ligados por pai, mãe ou casamento; amigo/namorado só depois que o outro aceitar
 function visiveis_(all, startId) {
   const seen = new Set(); if (!startId) return seen;
   const byId = {}; all.forEach(p => byId[p.id] = p);
   const adj = {}; const add = (a, b) => { if (!a || !b || !byId[a] || !byId[b]) return; (adj[a] = adj[a] || []).push(b); (adj[b] = adj[b] || []).push(a); };
-  all.forEach(p => { add(p.id, p.data.father); add(p.id, p.data.mother); add(p.id, p.data.spouse); });
+  all.forEach(p => { add(p.id, p.data.father); add(p.id, p.data.mother); add(p.id, p.data.spouse); (p.data.links || []).forEach(l => { if (l.confirmado) add(p.id, l.to); }); });
   seen.add(startId); const q = [startId];
   while (q.length) { const x = q.pop(); (adj[x] || []).forEach(y => { if (!seen.has(y)) { seen.add(y); q.push(y); } }); }
   return seen;
@@ -69,7 +69,6 @@ function vincular_(r, a) {
 function previa_(a) {
   const all = pessoas_(), byId = {}; all.forEach(p => byId[p.id] = p.data);
   const X = byId[a.to]; if (!X) throw new Error('Pessoa não encontrada.');
-  const nm = id => { const p = byId[id]; return p && !p.data && !p.unnamed ? p.name : (p && !p.unnamed ? p.name : ''); };
   const kids = id => all.filter(p => (p.data.father === id || p.data.mother === id) && !p.data.unnamed).map(p => p.data.name);
   const sibs = d => all.filter(p => p.data !== d && !p.data.unnamed && ((d.father && p.data.father === d.father) || (d.mother && p.data.mother === d.mother))).map(p => p.data.name);
   const pais = d => [d.father, d.mother].map(id => byId[id]).filter(p => p && !p.unnamed).map(p => p.name);
@@ -80,4 +79,27 @@ function previa_(a) {
   else if (a.rel === 'conjuge') { kids(a.to).slice(0, 1).forEach(k => put('Então ' + k + ' é seu filho/sua filha?')); pais(X).slice(0, 1).forEach(n => put('E ' + n + ' é seu sogro/sua sogra?')); sibs(X).slice(0, 1).forEach(n => put('E ' + n + ' é seu cunhado/sua cunhada?')); }
   else if (a.rel === 'eu') { pais(X).slice(0, 1).forEach(n => put('Você é filho(a) de ' + n + '?')); sibs(X).slice(0, 1).forEach(n => put('E é irmão/irmã de ' + n + '?')); if (sp) put('É casado(a) com ' + sp + '?'); kids(a.to).slice(0, 1).forEach(k => put(k + ' é seu filho/sua filha?')); }
   return { perguntas: Q };
+}
+
+// pedidos de namorado(a)/amigo(a) esperando a resposta da pessoa (ou do dono)
+function pedidos_(r) {
+  const all = pessoas_(), c = cadLinha_(r.code), eu = c && c.data.personId;
+  const out = [];
+  all.forEach(p => (p.data.links || []).forEach(l => {
+    if (!l.confirmado && !l.recusado && (r.role === 'owner' || l.to === eu)) {
+      const alvo = all.find(x => x.id === l.to);
+      out.push({ de: p.id, nome: p.data.name, tipo: l.type, para: l.to, paraNome: alvo ? alvo.data.name : '' });
+    }
+  }));
+  return out;
+}
+function responder_(r, a) {
+  const c = cadLinha_(r.code), eu = c && c.data.personId, all = pessoas_();
+  const p = all.find(x => x.id === a.de); if (!p) throw new Error('Pedido não encontrado.');
+  const l = (p.data.links || []).find(x => x.to === a.para && !x.confirmado);
+  if (!l) throw new Error('Pedido não encontrado.');
+  if (r.role !== 'owner' && l.to !== eu) throw new Error('Só a própria pessoa pode responder.');
+  if (a.aceitar) { l.confirmado = true; l.confirmadoEm = Date.now(); } else { l.recusado = true; }
+  salvarPessoa_(p.id, p.data);
+  return { ok: true };
 }
